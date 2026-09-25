@@ -40,3 +40,10 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 /resources
+
+# local editor
+.cursor/
+
+# cover working files, not part of the proposal
+docs/_*
+docs/sb-mark.jpg
