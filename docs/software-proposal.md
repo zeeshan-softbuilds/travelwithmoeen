@@ -15,9 +15,9 @@ This document is for Travel With Moeen and SoftBuilds Pvt Ltd. Please do not pub
 |---|---|---|
 | 1.0 | September 26, 2026 | First issue for review and sign-off |
 
-Please read this document and sign Section 24 if you agree. After you sign, this document is the plan we will follow. If you want a change later, please send it in writing.
+Please read this document and sign Section 23 if you agree. After you sign, this document is the plan we will follow. If you want a change later, please send it in writing.
 
-The fee and the payment plan are not in this document. They will be set out in a separate document, called Schedule A. When you sign, you agree the work, the way we will do it, and the eight-week plan in Section 13. You are not agreeing to a fee.
+When you sign, you agree the work, the way we will do it, and the eight-week plan in Section 13.
 
 ---
 
@@ -130,7 +130,6 @@ The first delivery is Steps 1, 2, and 3 in Section 12.
 - Card payment on the website
 - A login for guests
 - Deleting your Excel file. The file stays with you. We copy the prices from it.
-- The fee and hosting bills. Those will be Schedule A. The eight weeks in Section 13 are part of this document.
 
 ---
 
@@ -325,7 +324,7 @@ This step needs a separate written approval after the first delivery is in daily
 
 ## 13. Timeline
 
-The weeks start on the day you sign Section 24. The plan is for one full-time developer. It also allows you up to five working days to review each step.
+The weeks start on the day you sign Section 23. The plan is for one full-time developer. It also allows you up to five working days to review each step.
 
 The first delivery is Step 1, Step 2, and Step 3. The aim is your acceptance of Step 3 at the end of week 8. If you finish a review sooner, the next step starts sooner. If a review is late, or you add a change, the end date moves by the same number of days.
 
@@ -393,7 +392,7 @@ These four weeks do not include new pages, new charges, or Step 4. Those are cha
 
 Your existing website, your photos, your tour text, your Excel file, and your guest data stay yours.
 
-The office system built under this document is yours once the fees in Schedule A are paid. Until those fees are paid, SoftBuilds Pvt Ltd may pause further work. Your existing website will stay online and will stay yours.
+The office system built under this document is yours. Your existing website will stay online and will stay yours.
 
 SoftBuilds Pvt Ltd may reuse general methods that are not special to Travel With Moeen. We will not reuse your prices, your guest list, or your private files.
 
@@ -459,30 +458,14 @@ Level means how much this can affect the first delivery. High would stop the rel
 3. Reply on the Ratti Gali price list when you are ready.
 4. Ask a staff member to try each step against Section 12.
 5. Keep your Excel file if you still want a spreadsheet copy. We will not delete it.
-6. Pay the fees in Schedule A on the dates that document will set. This document does not set those dates.
 
 ---
 
-## 23. Fee
-
-The fee, the payment dates, and what happens if the schedule moves because a review is late or a change is added, will be written in Schedule A.
-
-Schedule A is not part of version 1.0. Signing Section 24 does not agree a fee.
-
-Schedule A will state:
-
-- The fee for Steps 1 to 3
-- When each part of the fee is due
-- The fee for the four weeks of support in Section 16, if it is not already inside the Steps 1 to 3 fee
-- That Step 4 is priced only after you give written approval
-
----
-
-## 24. Sign-off
+## 23. Sign-off
 
 By signing, you confirm that Sections 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, and 19 are the agreed first delivery, the agreed schedule, and the agreed rules for setup, quality, training, support, ownership, updates, and assumptions.
 
-Section 6.2 and Step 4 are not part of that first delivery. Section 23 does not agree a fee.
+Section 6.2 and Step 4 are not part of that first delivery.
 
 | Role | Name | Signature | Date |
 |---|---|---|---|
