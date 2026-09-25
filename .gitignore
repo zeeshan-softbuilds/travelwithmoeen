@@ -46,4 +46,3 @@ next-env.d.ts
 
 # cover working files, not part of the proposal
 docs/_*
-docs/sb-mark.jpg
