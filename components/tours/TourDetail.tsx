@@ -8,53 +8,25 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getCategoryBadgeClass, TourCategory, type Tour } from "@/data/tours";
+import { getCategoryBadgeClass, type Tour } from "@/data/tours";
 import { TourOverview } from "@/components/tours/TourOverview";
 import { cn } from "@/lib/utils";
-import { calculatePackagePrice, getVehicleDisplayName } from "@/lib/calculatePackagePrice";
-import { HotelCategory } from "@/data/pricing";
-
-// All hotel categories to show on every tour
-const ALL_HOTEL_CATEGORIES: HotelCategory[] = [
-  "Deluxe",
-  "Premier",
-  "Executive",
-  "Luxury",
-  "Ultra Luxury",
-];
+const GUEST_GRADES = ["Deluxe", "Executive", "Luxury", "Ultra Luxury"];
 
 export default function TourDetails({ tour }: { tour: Tour | null }) {
   const [openItems, setOpenItems] = useState<string[]>([]);
 
   // Calculate dynamic prices for ALL hotel categories
   const packagePrices = useMemo(() => {
-    if (!tour) return {};
-
-    const prices: Record<string, {
-      price: number;
-      vehicleType: string;
-      hotelName?: string;
-    }> = {};
-
-    // Calculate price for each hotel category
-    ALL_HOTEL_CATEGORIES.forEach((category) => {
-      const result = calculatePackagePrice(
-        tour.region,
-        category as TourCategory,
-        tour.duration,
-        tour.transport,
-        "Islamabad"
-      );
-
-      if (result) {
-        prices[category] = {
-          price: result.totalForTwo,
-          vehicleType: getVehicleDisplayName(result.vehicleType, tour.transport),
-          hotelName: result.hotelName,
-        };
-      }
-    });
-
+    const prices: Record<string, { price: number; vehicleType: string; hotelName?: string }> = {};
+    for (const offer of tour?.offers ?? []) {
+      if (!GUEST_GRADES.includes(offer.category)) continue;
+      prices[offer.category] = {
+        price: offer.price,
+        vehicleType: offer.vehicle,
+        hotelName: offer.hotelName,
+      };
+    }
     return prices;
   }, [tour]);
 
@@ -73,9 +45,7 @@ export default function TourDetails({ tour }: { tour: Tour | null }) {
     : false;
 
   // Filter categories: For 1-day tours, only show Deluxe
-  const displayCategories = tour?.duration === 1
-    ? ALL_HOTEL_CATEGORIES.filter(cat => cat === "Deluxe")
-    : ALL_HOTEL_CATEGORIES;
+  const displayCategories = (tour?.duration === 1 ? ["Deluxe"] : GUEST_GRADES).filter((category) => packagePrices[category]);
 
   if (!tour) {
     return (
@@ -109,7 +79,7 @@ export default function TourDetails({ tour }: { tour: Tour | null }) {
           <div className="container mx-auto">
             <div className="inline-block rounded-lg bg-white/85 px-5 py-4 backdrop-blur-sm">
               <div className="mb-2 flex flex-wrap gap-2">
-                {tour.categories.map((category) => (
+                {tour.categories.filter((category) => category !== "Premier").map((category) => (
                   <Badge
                     key={category}
                     className={cn("text-xs", getCategoryBadgeClass(category))}

@@ -217,6 +217,7 @@ This list is the whole project. A new office route is added to this list in the 
 | Call | Who |
 |---|---|
 | Public pages, including home, tours, places, blog, gallery, calculator, contact, and custom trip | Anyone. No session. |
+| `POST /api/quote` | Anyone. A guest response is one total. A signed-in Owner or Manager also receives the lines and the profit. Night and day edits are ignored unless that person can change a rate. |
 | `POST /api/office/login` | Anyone. The failure rules in BR-67 and BR-68 apply. |
 | `POST /api/office/logout` and `GET /api/office/session` | A signed-in Owner, Manager, or Editor. |
 | Tour, place, post, photo, review, slide, and site-detail writes | Owner or Editor. |

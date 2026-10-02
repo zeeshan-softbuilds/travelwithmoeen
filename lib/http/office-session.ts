@@ -8,6 +8,7 @@ export type OfficeSession = {
   canEditContent: boolean;
   canManageUsers: boolean;
   canDeleteTour: boolean;
+  canEditRates: boolean;
 };
 
 export type OfficeUserRow = {
@@ -46,6 +47,7 @@ export async function getOfficeSession(): Promise<OfficeSession | null> {
     canEditContent: Boolean(body.canEditContent),
     canManageUsers: Boolean(body.canManageUsers),
     canDeleteTour: Boolean(body.canDeleteTour),
+    canEditRates: Boolean(body.canEditRates),
   };
 }
 

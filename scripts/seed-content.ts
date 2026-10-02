@@ -62,7 +62,7 @@ async function main() {
       included: tour.included,
       notIncluded: tour.notIncluded,
       featured: tour.featured ?? false,
-      priceSource: "excel" as const,
+      priceSource: tour.code === "201" ? ("website" as const) : ("excel" as const),
       sortOrder: index,
     })),
   );

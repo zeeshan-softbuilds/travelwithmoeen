@@ -48,6 +48,9 @@ export async function updateTourAs(actor: SessionUser, input: TourEditInput): Pr
   if (!input.image.trim()) {
     return { ok: false, error: "Enter a photo." };
   }
+  if (!Number.isInteger(input.duration) || input.duration < 1 || input.duration > 60) {
+    return { ok: false, error: "Enter a trip of 1 to 60 days." };
+  }
   const [existing] = await db.select({ id: tours.id }).from(tours).where(eq(tours.id, input.id)).limit(1);
   if (!existing) {
     return { ok: false, error: "That tour was not found." };
@@ -216,7 +219,10 @@ export async function saveReviewAs(
   if (!input.name.trim() || !input.text.trim()) {
     return { ok: false, error: "Enter a name and the review." };
   }
-  const rating = Math.min(5, Math.max(1, input.rating || 5));
+  if (!Number.isInteger(input.rating) || input.rating < 1 || input.rating > 5) {
+    return { ok: false, error: "A review rating is 1 to 5." };
+  }
+  const rating = input.rating;
   if (input.id) {
     await db
       .update(reviews)

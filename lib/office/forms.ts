@@ -5,6 +5,7 @@ import type { ActionResult } from "@/lib/http/result";
 import type { BlogSection } from "@/data/blog";
 import type { DestinationSection } from "@/data/destinations";
 import { createUserAs, changeRoleAs, removeUserAs } from "@/lib/office/users";
+import { savePriceFromKind } from "@/lib/office/rates";
 import {
   deletePhotoAs,
   deleteReviewAs,
@@ -13,7 +14,6 @@ import {
   savePhotoAs,
   saveReviewAs,
   saveSlideAs,
-  savePriceAs,
   saveUploadedImage,
   updatePlaceAs,
   updatePostAs,
@@ -76,8 +76,8 @@ export async function removeUserFromForm(actor: SessionUser, formData: FormData)
   return removeUserAs(actor, Number(formData.get("userId")));
 }
 
-export async function savePriceFromForm(actor: SessionUser): Promise<ActionResult> {
-  return savePriceAs(actor);
+export async function savePriceFromForm(actor: SessionUser, formData: FormData): Promise<ActionResult> {
+  return savePriceFromKind(actor, formData);
 }
 
 export async function updateTourFromForm(actor: SessionUser, formData: FormData): Promise<ActionResult> {

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
 import { PackagePopup } from "./PackagePopup";
 import { motion, AnimatePresence } from "framer-motion";
@@ -37,19 +37,14 @@ import {
   airDestinations,
   hotelCategories,
   optionalAddOns,
-  calculateTripPrice,
   getAvailableVehicles,
   roadDepartures,
   airDepartures,
   getMinimumDays,
   isGuideCompulsory,
   getRecommendedVehicle,
-  roadHotelPricing,
-  airHotelPricing,
   type HotelCategory,
   type VehicleType,
-  type RoadDestination,
-  type AirDestination,
 } from "@/data/pricing";
 import type { Tour } from "@/data/tours";
 import { TourCard } from "@/components/TourCard";
@@ -87,7 +82,8 @@ export function PackageCalculator({ tours }: { tours: Tour[] }) {
   const destinations =
     transportMode === "By Air" ? airDestinations : roadDestinations;
   const departures =
-    transportMode === "By Air" ? airDepartures : roadDepartures;
+    transportMode === "By Air" ? airDepartures : roadDepartures.filter((city) => city !== "Karachi");
+  const guestGrades = hotelCategories.filter((category) => category !== "Premier");
 
   // Calculate total seats needed (infant lap doesn't need seat)
   const totalSeatsNeeded = adults + children + infantOwnSeat;
@@ -175,37 +171,66 @@ export function PackageCalculator({ tours }: { tours: Tour[] }) {
     (addon) => addon.id === "guide" || addon.id === "meal",
   );
 
-  const pricing = useMemo(() => {
-    if (!selectedDestination) return null;
-    return calculateTripPrice({
-      transportMode,
-      destination: selectedDestination,
-      hotelCategory,
-      vehicleType,
-      days,
-      travelers: totalSeatsNeeded,
-      roomType,
-      selectedAddOns,
-      departure,
-      adults,
-      children,
-      infantLap,
-      infantOwnSeat,
-    });
+  const [quote, setQuote] = useState<{
+    ok: boolean;
+    total?: number;
+    hotelName?: string;
+    vehicleCount?: number;
+    error?: string;
+    lines?: { label: string; amount: number }[];
+    profit?: number;
+    subtotal?: number;
+    seasonPercent?: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!selectedDestination) return;
+    let active = true;
+    const timer = setTimeout(() => {
+      void fetch("/api/quote", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          place: selectedDestination,
+          startCity: departure,
+          mode: transportMode === "By Air" ? "air" : "road",
+          days,
+          adults,
+          children,
+          lapInfants: infantLap,
+          seatInfants: infantOwnSeat,
+          grade: hotelCategory,
+          vehicle: vehicleType,
+          guide: selectedAddOns.includes("guide") || guideRequired,
+          meals: selectedAddOns.includes("meal") || selectedAddOns.includes("meals"),
+        }),
+      })
+        .then((response) => response.json())
+        .then((body) => {
+          if (active) setQuote(body);
+        })
+        .catch(() => {
+          if (active) setQuote({ ok: false, error: "The quote could not be reached." });
+        });
+    }, 200);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
   }, [
     transportMode,
     selectedDestination,
     hotelCategory,
     vehicleType,
     days,
-    totalSeatsNeeded,
-    roomType,
-    selectedAddOns,
     departure,
     adults,
     children,
     infantLap,
     infantOwnSeat,
+    selectedAddOns,
+    guideRequired,
   ]);
 
   const matchingTours = useMemo(() => {
@@ -232,15 +257,7 @@ export function PackageCalculator({ tours }: { tours: Tour[] }) {
     new Intl.NumberFormat("en-PK").format(price);
 
   // Get hotel name for the selected category and destination
-  const hotelName = useMemo(() => {
-    if (!selectedDestination) return null;
-    const hotelData =
-      transportMode === "By Air"
-        ? airHotelPricing[selectedDestination as AirDestination]
-        : roadHotelPricing[selectedDestination as RoadDestination];
-    if (!hotelData || !hotelData[hotelCategory]) return null;
-    return hotelData[hotelCategory].hotel_name || null;
-  }, [selectedDestination, hotelCategory, transportMode]);
+  const hotelName = quote?.ok ? quote.hotelName : null;
 
   const handleWhatsAppClick = () => {
     const addOnNames = selectedAddOns
@@ -248,7 +265,7 @@ export function PackageCalculator({ tours }: { tours: Tour[] }) {
       .filter(Boolean)
       .join(", ");
 
-    const vehiclesNeededCount = pricing?.vehiclesNeeded || 1;
+    const vehiclesNeededCount = quote?.vehicleCount || 1;
     const message = `Hi, I'm interested in booking a tour with the following details:
 
 *Transport Mode:* ${transportMode}
@@ -269,10 +286,8 @@ export function PackageCalculator({ tours }: { tours: Tour[] }) {
 *Add-ons:* ${addOnNames || "None"}
 
 ${
-  pricing
-    ? `*Estimated Cost:*
-- Grand Total: PKR ${formatPrice(pricing.grandTotal)}
-- Per Person: PKR ${formatPrice(pricing.perPerson)}`
+  quote?.ok && quote.total !== undefined
+    ? `*Estimated Cost:* PKR ${formatPrice(quote.total)}`
     : "*Estimated Cost:* Not calculated (please select a destination)"
 }
 
@@ -365,30 +380,17 @@ Please confirm availability and provide more details.`;
                         Departure City
                       </label>
                       <div className="flex gap-2">
-                        {departures.map((city) => {
-                          const isDisabled =
-                            transportMode === "By Road" && city === "Karachi";
-                          return (
+                        {departures.map((city) => (
                             <Button
                               key={city}
                               variant={departure === city ? "navy" : "outline"}
-                              className={cn(
-                                "flex-1",
-                                isDisabled && "opacity-50 cursor-not-allowed",
-                              )}
-                              onClick={() => !isDisabled && setDeparture(city)}
-                              disabled={isDisabled}
+                              className="flex-1"
+                              onClick={() => setDeparture(city)}
                             >
                               {city}
                             </Button>
-                          );
-                        })}
+                          ))}
                       </div>
-                      {transportMode === "By Road" && (
-                        <p className="mt-1.5 text-xs text-muted-foreground">
-                          Karachi departure not available for road trips
-                        </p>
-                      )}
                     </div>
 
                     {/* 3. Destination */}
@@ -429,7 +431,7 @@ Please confirm availability and provide more details.`;
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {hotelCategories.map((cat) => (
+                          {guestGrades.map((cat) => (
                             <SelectItem key={cat} value={cat}>
                               {cat}
                             </SelectItem>
@@ -684,9 +686,9 @@ Please confirm availability and provide more details.`;
                           ))}
                         </SelectContent>
                       </Select>
-                      {selectedDestination && totalSeatsNeeded > 0 && pricing && pricing.vehiclesNeeded > 1 && (
+                      {selectedDestination && totalSeatsNeeded > 0 && quote?.ok && (quote.vehicleCount ?? 1) > 1 && (
                           <p className="mt-1.5 text-xs text-muted-foreground">
-                            {pricing.vehiclesNeeded} vehicles needed for {totalSeatsNeeded} travelers
+                            {quote.vehicleCount} vehicles needed for {totalSeatsNeeded} travelers
                           </p>
                         )}
                     </div>
@@ -753,7 +755,7 @@ Please confirm availability and provide more details.`;
                     )}
                     {transportMode === "By Road" && days > 1 && (
                       <p className="mt-2 text-xs text-muted-foreground">
-                        * Arrival Breakfast (PKR 500/person) included for trips &gt; 1 day
+                        * Arrival breakfast is included for trips longer than one day
                       </p>
                     )}
                   </div>
@@ -767,10 +769,10 @@ Please confirm availability and provide more details.`;
                     </span>
                   </div>
 
-                  {pricing ? (
+                  {quote?.ok && quote.total !== undefined ? (
                     <>
                       <motion.div
-                        key={pricing.grandTotal}
+                        key={quote.total}
                         initial={{ scale: 0.95, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         transition={{ duration: 0.3 }}
@@ -779,17 +781,28 @@ Please confirm availability and provide more details.`;
                         <div className="relative">
                           <div className="absolute right-0 top-0 h-20 w-20 rounded-full bg-white/10" />
                           <p className="relative text-3xl font-bold text-gold md:text-4xl">
-                            PKR {formatPrice(pricing.grandTotal)}
+                            PKR {formatPrice(quote.total)}
                           </p>
                           <p className="mt-1 text-sm text-gold/80">
                             Total for {totalTravelers} traveler
                             {totalTravelers > 1 ? "s" : ""}
                           </p>
-                          <p className="mt-1 text-lg font-semibold text-gold/90">
-                            PKR {formatPrice(pricing.perPerson)} / person
-                          </p>
                         </div>
                       </motion.div>
+                      {quote.lines && quote.profit !== undefined ? (
+                        <div className="mb-4 space-y-2 rounded-xl bg-background p-4 text-sm">
+                          {quote.lines.map((line) => (
+                            <div className="flex justify-between" key={line.label}>
+                              <span className="text-muted-foreground">{line.label}</span>
+                              <span className="font-medium text-navy">PKR {formatPrice(line.amount)}</span>
+                            </div>
+                          ))}
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Profit {quote.seasonPercent}%</span>
+                            <span className="font-medium text-navy">PKR {formatPrice(quote.profit)}</span>
+                          </div>
+                        </div>
+                      ) : null}
 
                       {/* Breakdown 
                       <div className="mb-4 space-y-2 rounded-xl bg-background p-4 text-sm">
@@ -942,7 +955,7 @@ Please confirm availability and provide more details.`;
                     <div className="mb-4 rounded-2xl bg-navy/50 p-8 text-center">
                       <MapPin className="mx-auto mb-2 h-8 w-8 text-white/50" />
                       <p className="text-sm text-white/70">
-                        Select a destination to see pricing
+                        {quote && !quote.ok && quote.error ? quote.error : "Select a destination to see pricing"}
                       </p>
                     </div>
                   )}

@@ -6,6 +6,8 @@ import type { Destination } from "@/data/destinations";
 import type { GalleryImage } from "@/data/gallery";
 import type { Testimonial } from "@/data/testimonials";
 import type { Tour, TourDay, TourRegion, TransportType } from "@/data/tours";
+import { buildQuote, GUEST_GRADES, type RateCatalog } from "@/lib/quote";
+import { loadCatalog } from "@/lib/rates";
 
 export type SiteSettings = {
   phoneDisplay: string;
@@ -48,6 +50,48 @@ function toTour(row: typeof tours.$inferSelect, days: TourDay[]): Tour {
     included: row.included,
     notIncluded: row.notIncluded,
     featured: row.featured,
+    priceSource: row.priceSource,
+    couplePrice: row.basePrice,
+    offers: [],
+  };
+}
+
+function priceTour(tour: Tour, catalog: RateCatalog): Tour {
+  if (tour.priceSource === "website" || tour.code === "201") {
+    return {
+      ...tour,
+      priceSource: "website",
+      couplePrice: tour.basePrice,
+      offers: [{ category: "Deluxe", price: tour.basePrice, vehicle: "", hotelName: "" }],
+    };
+  }
+  if (catalog.hotels.length === 0) return tour;
+  const mode = tour.transport === "By Air" ? "air" : "road";
+  const vehicle = mode === "air" ? "Prado" : "Gli Car";
+  const shared = {
+    place: tour.region,
+    startCity: "Islamabad",
+    mode,
+    days: tour.duration,
+    adults: 2,
+    children: 0,
+    lapInfants: 0,
+    seatInfants: 0,
+    vehicle,
+    roomCount: 1,
+    guide: false,
+    meals: false,
+  } as const;
+  const couple = buildQuote({ ...shared, grade: "Deluxe" }, catalog);
+  const offers = GUEST_GRADES.flatMap((grade) => {
+    const result = buildQuote({ ...shared, grade }, catalog);
+    if (!result.ok) return [];
+    return [{ category: grade, price: result.total, vehicle: result.vehicleName, hotelName: result.hotelName }];
+  });
+  return {
+    ...tour,
+    couplePrice: couple.ok ? couple.total : tour.basePrice,
+    offers,
   };
 }
 
@@ -72,7 +116,8 @@ export async function getTours(): Promise<Tour[]> {
     db.select().from(tours).orderBy(asc(tours.sortOrder)),
     daysByTour(),
   ]);
-  return tourRows.map((row) => toTour(row, days.get(row.id) ?? []));
+  const catalog = await loadCatalog();
+  return tourRows.map((row) => priceTour(toTour(row, days.get(row.id) ?? []), catalog));
 }
 
 export async function getTour(id: string): Promise<Tour | null> {
@@ -83,14 +128,17 @@ export async function getTour(id: string): Promise<Tour | null> {
     .from(tourDays)
     .where(eq(tourDays.tourId, id))
     .orderBy(asc(tourDays.dayNumber));
-  return toTour(
-    row,
-    dayRows.map((day) => ({
-      day: day.dayNumber,
-      title: day.title,
-      description: day.description,
-      highlights: day.highlights,
-    })),
+  return priceTour(
+    toTour(
+      row,
+      dayRows.map((day) => ({
+        day: day.dayNumber,
+        title: day.title,
+        description: day.description,
+        highlights: day.highlights,
+      })),
+    ),
+    await loadCatalog(),
   );
 }
 

@@ -120,6 +120,118 @@ export const slides = pgTable("slides", {
   sortOrder: integer("sort_order").notNull(),
 });
 
+export const hotelRates = pgTable(
+  "hotel_rates",
+  {
+    id: serial("id").primaryKey(),
+    place: text("place").notNull(),
+    startCity: text("start_city").notNull(),
+    grade: text("grade").notNull(),
+    twin: integer("twin").notNull(),
+    triple: integer("triple").notNull(),
+    hotelName: text("hotel_name").notNull().default(""),
+    offered: boolean("offered").notNull().default(true),
+  },
+  (table) => [uniqueIndex("hotel_rates_place_city_grade_idx").on(table.place, table.startCity, table.grade)],
+);
+
+export const vehicleRates = pgTable(
+  "vehicle_rates",
+  {
+    id: serial("id").primaryKey(),
+    place: text("place").notNull(),
+    startCity: text("start_city").notNull(),
+    mode: text("mode").notNull(),
+    vehicle: text("vehicle").notNull(),
+    rent: integer("rent").notNull(),
+    fuel: integer("fuel").notNull(),
+    toll: integer("toll").notNull(),
+    seats: integer("seats").notNull(),
+    live: boolean("live").notNull().default(true),
+  },
+  (table) => [uniqueIndex("vehicle_rates_place_city_mode_vehicle_idx").on(table.place, table.startCity, table.mode, table.vehicle)],
+);
+
+export const airExtras = pgTable("air_extras", {
+  id: serial("id").primaryKey(),
+  islamabadTicket: integer("islamabad_ticket").notNull(),
+  lahoreAdd: integer("lahore_add").notNull(),
+  karachiAdd: integer("karachi_add").notNull(),
+  welcomePack: integer("welcome_pack").notNull(),
+  entry: integer("entry").notNull(),
+  infantExtra: integer("infant_extra").notNull(),
+  sticker: integer("sticker").notNull(),
+});
+
+export const jeepLines = pgTable("jeep_lines", {
+  id: serial("id").primaryKey(),
+  place: text("place").notNull(),
+  mode: text("mode").notNull(),
+  label: text("label").notNull(),
+  people: integer("people").notNull(),
+  amount: integer("amount").notNull(),
+  live: boolean("live").notNull().default(true),
+});
+
+export const seasons = pgTable("seasons", {
+  id: serial("id").primaryKey(),
+  percent: integer("percent").notNull(),
+});
+
+export const quotes = pgTable("quotes", {
+  id: serial("id").primaryKey(),
+  place: text("place").notNull(),
+  startCity: text("start_city").notNull(),
+  mode: text("mode").notNull(),
+  days: integer("days").notNull(),
+  adults: integer("adults").notNull(),
+  children: integer("children").notNull(),
+  lapInfants: integer("lap_infants").notNull(),
+  seatInfants: integer("seat_infants").notNull(),
+  grade: text("grade").notNull(),
+  vehicle: text("vehicle").notNull(),
+  otherNote: text("other_note").notNull().default(""),
+  guide: boolean("guide").notNull(),
+  meals: boolean("meals").notNull(),
+  seasonPercent: integer("season_percent").notNull(),
+  subtotal: integer("subtotal").notNull(),
+  profit: integer("profit").notNull(),
+  total: integer("total").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const quoteNights = pgTable("quote_nights", {
+  id: serial("id").primaryKey(),
+  quoteId: integer("quote_id")
+    .notNull()
+    .references(() => quotes.id, { onDelete: "cascade" }),
+  night: integer("night").notNull(),
+  rate: integer("rate").notNull(),
+  hotelName: text("hotel_name").notNull(),
+});
+
+export const quoteDays = pgTable("quote_days", {
+  id: serial("id").primaryKey(),
+  quoteId: integer("quote_id")
+    .notNull()
+    .references(() => quotes.id, { onDelete: "cascade" }),
+  day: integer("day").notNull(),
+  vehicle: text("vehicle").notNull(),
+  rent: integer("rent").notNull(),
+  fuel: integer("fuel").notNull(),
+  toll: integer("toll").notNull(),
+  cleared: boolean("cleared").notNull().default(false),
+});
+
+export const quoteExtras = pgTable("quote_extras", {
+  id: serial("id").primaryKey(),
+  quoteId: integer("quote_id")
+    .notNull()
+    .references(() => quotes.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  amount: integer("amount").notNull(),
+});
+
 export const siteSettings = pgTable("site_settings", {
   id: integer("id").primaryKey(),
   phoneDisplay: text("phone_display").notNull(),

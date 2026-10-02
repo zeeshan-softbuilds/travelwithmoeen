@@ -29,6 +29,11 @@ export async function OfficeShell({ children }: { children: React.ReactNode }) {
               Users
             </Link>
           ) : null}
+          {user.canEditRates ? (
+            <Link className={linkClass} href="/office/rates">
+              Rates
+            </Link>
+          ) : null}
           {user.canEditContent ? (
             <>
               <Link className={linkClass} href="/office/tours">

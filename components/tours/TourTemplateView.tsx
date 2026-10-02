@@ -2,56 +2,29 @@
 
 import { useMemo } from "react";
 import type { Tour } from "@/data/tours";
-import { calculatePackagePrice, getVehicleDisplayName } from "@/lib/calculatePackagePrice";
-import { HotelCategory } from "@/data/pricing";
 import TourTemplate from "@/components/tours/TourTemplate";
 
-const ALL_HOTEL_CATEGORIES: HotelCategory[] = [
-  "Deluxe",
-  "Premier",
-  "Executive",
-  "Luxury",
-  "Ultra Luxury",
-];
+const GUEST_GRADES = ["Deluxe", "Executive", "Luxury", "Ultra Luxury"];
 
 export default function TourTemplatePage({ tour }: { tour: Tour | null }) {
 
   // Filter categories: For 1-day tours, only show Deluxe
-  const displayCategories = tour?.duration === 1
-    ? ALL_HOTEL_CATEGORIES.filter(cat => cat === "Deluxe")
-    : ALL_HOTEL_CATEGORIES;
-
-  // Calculate dynamic prices for filtered hotel categories
   const packages = useMemo(() => {
     if (!tour) return [];
-
-    return displayCategories.map((category) => {
-      const result = calculatePackagePrice(
-        tour.region,
+    const displayCategories = tour.duration === 1 ? ["Deluxe"] : GUEST_GRADES;
+    return displayCategories.flatMap((category) => {
+      const offer = tour.offers?.find((row) => row.category === category);
+      if (!offer) return [];
+      return [{
         category,
-        tour.duration,
-        tour.transport,
-        "Islamabad"
-      );
-
-      if (result) {
-        return {
-          category,
-          price: result.totalForTwo,
-          features: [
-            `Private Transport (${getVehicleDisplayName(result.vehicleType)})`,
-            ...(result.hotelName ? [result.hotelName] : []),
-          ],
-        };
-      }
-
-      return {
-        category,
-        price: 0,
-        features: ["Contact for pricing"],
-      };
+        price: offer.price,
+        features: [
+          offer.vehicle ? `Private Transport (${offer.vehicle})` : "Private Transport",
+          ...(offer.hotelName ? [offer.hotelName] : []),
+        ],
+      }];
     });
-  }, [tour, displayCategories]);
+  }, [tour]);
 
   if (!tour) {
     return (

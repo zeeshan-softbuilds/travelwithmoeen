@@ -3,10 +3,13 @@ import { unlink } from "fs/promises";
 import path from "path";
 import { eq } from "drizzle-orm";
 import { db } from "../lib/db";
-import { loginFailures, photos, users } from "../lib/db/schema";
+import { hotelRates, loginFailures, photos, tours, users } from "../lib/db/schema";
 import { signInRefusalLine } from "../lib/auth/login-guard";
 import { createUserAs, removeUserAs } from "../lib/office/users";
 import { authenticate } from "../lib/auth/authenticate";
+import { importRates } from "../lib/import-rates";
+import { buildQuote, GUEST_GRADES } from "../lib/quote";
+import { loadCatalog } from "../lib/rates";
 
 const LOGIN_ERROR = "That email or password is not right.";
 const PROBE_PASSWORD = "step2-probe-password";
@@ -313,8 +316,131 @@ async function main() {
     await db.delete(users).where(eq(users.email, MANAGER_EMAIL));
   }
 
+  await assertQuotes();
   console.info("Step 2 security checks passed.");
   process.exit(0);
+}
+
+async function assertQuotes() {
+  const unplaced = await importRates();
+  if (unplaced.length > 0) throw new Error(`The import left ${unplaced.length} rows without a place.`);
+  const catalog = await loadCatalog();
+  if (catalog.air.karachiAdd !== 30000) throw new Error("The Karachi air extra is not 30,000.");
+  if ((GUEST_GRADES as readonly string[]).includes("Premier")) throw new Error("Premier is offered to guests.");
+
+  const base = {
+    place: "Skardu Valley",
+    startCity: "Islamabad",
+    mode: "road" as const,
+    days: 5,
+    adults: 2,
+    children: 0,
+    lapInfants: 0,
+    seatInfants: 0,
+    grade: "Deluxe",
+    vehicle: "Gli Car",
+    guide: false,
+    meals: false,
+    seasonPercent: 20 as const,
+  };
+  const premier = buildQuote({ ...base, grade: "Premier" }, catalog);
+  if (premier.ok) throw new Error("Premier was quoted.");
+  const quote = buildQuote(base, catalog);
+  if (!quote.ok || quote.subtotal !== 117000 || quote.total !== 140400) {
+    throw new Error(`The Skardu quote was ${quote.ok ? quote.total : quote.error}.`);
+  }
+  const fifteen = buildQuote({ ...base, seasonPercent: 15 }, catalog);
+  if (!fifteen.ok || fifteen.subtotal !== 117000 || fifteen.profit === quote.profit || fifteen.total !== 134550) {
+    throw new Error("15 percent did not change only the profit.");
+  }
+  const karachiRoad = buildQuote({ ...base, startCity: "Karachi" }, catalog);
+  if (karachiRoad.ok) throw new Error("A road quote started in Karachi.");
+  const karachiAir = buildQuote(
+    { ...base, startCity: "Karachi", mode: "air", days: 4, adults: 1, vehicle: "Prado" },
+    catalog,
+  );
+  const tickets = karachiAir.ok ? karachiAir.lines.find((line) => line.label === "Air tickets") : undefined;
+  if (!karachiAir.ok || tickets?.amount !== 90000) throw new Error("The Karachi air quote did not include 30,000.");
+  const guestResponse = await fetch(`${officeBase()}/api/quote`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(base),
+  });
+  const guestBody = (await guestResponse.json()) as { total?: number; profit?: number; lines?: unknown };
+  if (guestResponse.status !== 200 || guestBody.total !== 140400 || guestBody.profit !== undefined || guestBody.lines !== undefined) {
+    throw new Error("The guest quote did not return one total.");
+  }
+
+  const edited = buildQuote({ ...base, nightEdits: [{ night: 2, rate: 20000 }] }, catalog);
+  if (!edited.ok || edited.nights[1]?.rate !== 20000 || edited.nights.some((night, index) => index !== 1 && night.rate !== 9000)) {
+    throw new Error("Night two changed another night.");
+  }
+  if (edited.averageNightly !== 11750) throw new Error("The average nightly rate did not follow night two.");
+  const cleared = buildQuote({ ...base, dayEdits: [{ day: 1, cleared: true }] }, catalog);
+  const vehicleBefore = quote.lines.find((line) => line.label === "Vehicle")?.amount ?? 0;
+  const vehicleAfter = cleared.ok ? cleared.lines.find((line) => line.label === "Vehicle")?.amount ?? 0 : 0;
+  if (!cleared.ok || vehicleBefore - vehicleAfter !== 15000 || cleared.days[1]?.rent !== 8000) {
+    throw new Error("Clearing one day did not remove that day's rent.");
+  }
+
+  const jeep = buildQuote(
+    { ...base, place: "Kalash Valley & Chitral", days: 6, vehicle: "Gli Car" },
+    catalog,
+  );
+  const jeepLine = jeep.ok ? jeep.lines.find((line) => line.amount === 90000) : undefined;
+  if (!jeep.ok || !jeepLine || jeep.lines.some((line) => line.amount === 90000 * 6 || line.amount === 90000 * 3)) {
+    throw new Error("The jeep amount was multiplied by the number of days.");
+  }
+
+  const taobat = await db.select().from(hotelRates).where(eq(hotelRates.place, "Taobat"));
+  const taobatDeluxe = taobat.find((row) => row.grade === "Deluxe" && row.startCity === "Islamabad");
+  if (!taobatDeluxe || taobatDeluxe.twin === 6000 || taobatDeluxe.twin !== 9000) {
+    throw new Error("The live Taobat deluxe twin is still 6,000.");
+  }
+  const naran = await db.select().from(hotelRates).where(eq(hotelRates.place, "Naran Kaghan & Babusar Top"));
+  const naranDeluxe = naran.find((row) => row.grade === "Deluxe" && row.startCity === "Islamabad");
+  if (!naranDeluxe || naranDeluxe.twin !== 15000) throw new Error("Naran was not left as stored.");
+  const [ratti] = await db.select().from(tours).where(eq(tours.code, "201")).limit(1);
+  if (!ratti || ratti.priceSource !== "website" || ratti.basePrice !== 150000) {
+    throw new Error("Ratti Gali is not on the website price of 150,000.");
+  }
+
+  const owner = await authenticate(process.env.OWNER_EMAIL?.trim().toLowerCase() ?? "", process.env.OWNER_PASSWORD ?? "");
+  if (!owner) throw new Error("The Owner password was refused.");
+  await db.delete(users).where(eq(users.email, MANAGER_EMAIL));
+  const managerCreated = await createUserAs(owner, { email: MANAGER_EMAIL, password: MANAGER_PASSWORD, role: "manager" });
+  if (!managerCreated.ok) throw new Error("The Owner could not create the Step 2 Manager.");
+  try {
+    const managerLogin = await signIn(MANAGER_EMAIL, MANAGER_PASSWORD);
+    const managerCookie = sessionCookie(managerLogin.response);
+    const hotel = taobatDeluxe;
+    const form = new FormData();
+    form.set("kind", "hotel");
+    form.set("id", String(hotel.id));
+    form.set("twin", "-1");
+    form.set("triple", "12000");
+    form.set("hotelName", hotel.hotelName);
+    const negative = await officePost("/api/office/rates", form, managerCookie);
+    if (negative.status !== 400 || negative.body.ok) throw new Error(`A negative rate returned ${negative.status}.`);
+    const blank = new FormData();
+    blank.set("kind", "hotel");
+    blank.set("id", String(hotel.id));
+    blank.set("twin", "");
+    blank.set("triple", "12000");
+    const missing = await officePost("/api/office/rates", blank, managerCookie);
+    if (missing.status !== 400) throw new Error(`A blank rate returned ${missing.status}.`);
+    const text = new FormData();
+    text.set("kind", "hotel");
+    text.set("id", String(hotel.id));
+    text.set("twin", "nine");
+    text.set("triple", "12000");
+    const word = await officePost("/api/office/rates", text, managerCookie);
+    if (word.status !== 400) throw new Error(`A non-numeric rate returned ${word.status}.`);
+  } finally {
+    const manager = await authenticate(MANAGER_EMAIL, MANAGER_PASSWORD);
+    if (manager) await removeUserAs(owner, manager.id);
+    await db.delete(users).where(eq(users.email, MANAGER_EMAIL));
+  }
 }
 
 main().catch((error) => {

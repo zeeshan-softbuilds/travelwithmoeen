@@ -48,6 +48,9 @@ export interface Tour {
   included: string[];
   notIncluded: string[];
   featured?: boolean;
+  priceSource?: "excel" | "website";
+  couplePrice?: number;
+  offers?: { category: string; price: number; vehicle: string; hotelName: string }[];
 }
 
 

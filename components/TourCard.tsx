@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tour, getCategoryBadgeClass } from "@/data/tours";
 import { cn } from "@/lib/utils";
-import { calculatePackagePrice } from "@/lib/calculatePackagePrice";
 
 interface TourCardProps {
   tour: Tour;
@@ -16,14 +15,7 @@ export function TourCard({ tour, view }: TourCardProps) {
   const isGrid = view === "grid";
 
   // Calculate Deluxe price dynamically
-  const deluxePrice = calculatePackagePrice(
-    tour.region,
-    "Deluxe",
-    tour.duration,
-    tour.transport,
-    "Islamabad"
-  );
-  const displayPrice = deluxePrice?.totalForTwo || tour.basePrice;
+  const displayPrice = tour.couplePrice ?? tour.basePrice;
 
   return (
     <Card
@@ -61,7 +53,7 @@ export function TourCard({ tour, view }: TourCardProps) {
         <CardHeader className={cn(isGrid ? "pb-2" : "pb-2")}>
           {/* Categories */}
           <div className="mb-2 flex min-h-[28px] flex-wrap gap-1.5 text-navy">
-            {tour.categories.map((category) => (
+            {tour.categories.filter((category) => category !== "Premier").map((category) => (
               <Badge
                 key={category}
                 variant="secondary"
