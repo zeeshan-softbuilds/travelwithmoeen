@@ -843,6 +843,7 @@ async function assertOfficeRequests(savedIds: number[]) {
     if (!ownerCookie) throw new Error("The Owner did not get a session.");
     await assertOfficeMedia(editorCookie, managerCookie, ownerCookie);
     await assertTourPlaceOffice(editorCookie, managerCookie, ownerCookie);
+    await assertOfficeShellLinks(editorCookie, managerCookie, ownerCookie);
     const ownerDelete = await officePost("/api/office/requests/delete", deleteForm, ownerCookie);
     if (ownerDelete.status !== 200 || !ownerDelete.body.ok) {
       throw new Error(`An Owner delete returned ${ownerDelete.status}.`);
@@ -856,6 +857,59 @@ async function assertOfficeRequests(savedIds: number[]) {
     if (manager) await removeUserAs(owner, manager.id);
     await db.delete(users).where(eq(users.email, EDITOR_EMAIL));
     await db.delete(users).where(eq(users.email, MANAGER_EMAIL));
+  }
+}
+
+const OFFICE_LINKS_BY_ROLE = {
+  owner: [
+    "/office",
+    "/office/requests",
+    "/office/rates",
+    "/office/tours",
+    "/office/places",
+    "/office/blog",
+    "/office/gallery",
+    "/office/reviews",
+    "/office/slides",
+    "/office/site",
+    "/office/users",
+    "/office/backup",
+  ],
+  manager: ["/office", "/office/requests", "/office/rates"],
+  editor: [
+    "/office",
+    "/office/requests",
+    "/office/tours",
+    "/office/places",
+    "/office/blog",
+    "/office/gallery",
+    "/office/reviews",
+    "/office/slides",
+    "/office/site",
+  ],
+};
+
+function sidebarLinks(html: string) {
+  const links: string[] = [];
+  for (const tag of html.match(/<a [^>]*class="nav-item"[^>]*>/g) ?? []) {
+    const href = /href="([^"]+)"/.exec(tag)?.[1];
+    if (href) links.push(href);
+  }
+  return links;
+}
+
+// T-37a: the Meadow shell shows each role only the links it may use.
+async function assertOfficeShellLinks(editorCookie: string, managerCookie: string, ownerCookie: string) {
+  const cookies = { owner: ownerCookie, manager: managerCookie, editor: editorCookie };
+  for (const role of ["owner", "manager", "editor"] as const) {
+    const page = await officeGet("/office", cookies[role]);
+    if (page.status !== 200) throw new Error(`The ${role} office page returned ${page.status}.`);
+    const shown = sidebarLinks(page.text).join(" ");
+    const expected = OFFICE_LINKS_BY_ROLE[role].join(" ");
+    if (shown !== expected) throw new Error(`The ${role} sidebar shows ${shown || "no links"}, not ${expected}.`);
+    if (page.text.includes("Trip plans") || page.text.includes("View as")) {
+      throw new Error(`The ${role} office shows a prototype-only control.`);
+    }
   }
 }
 

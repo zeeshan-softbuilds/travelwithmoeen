@@ -1,0 +1,256 @@
+/*
+ * Meadow office look, T-37. Ported from docs/office-design/src/base.css and meadow.css.
+ * Every rule sits under .office, the root class on app/office/layout.tsx, so no token or
+ * class reaches a public page. Next.js keeps a stylesheet loaded after a route change,
+ * which is why the scope matters. Later T-37 tasks add their screen classes to this file.
+ *
+ * Breakpoints from the prototype build: phone 720px, tablet 960px.
+ */
+
+/* Same layer order as Tailwind, so the office rules sit between its base and utilities
+   whichever stylesheet loads first. */
+@layer theme, base, components, utilities;
+
+@layer components {
+  /* ---------- Tokens ---------- */
+  .office {
+    --space-0: 0;
+    --space-half: 2px;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+    --space-20: 80px;
+    --space-24: 96px;
+    --size-sm: 32px; --size-md: 40px; --size-lg: 48px;
+    --icon-sm: 16px; --icon-md: 20px; --icon-lg: 24px;
+    --w-xs: 320px; --w-sm: 480px; --w-md: 640px; --w-lg: 960px; --w-xl: 1240px;
+    --pad: var(--space-6); --gap: var(--space-4); --stack: var(--gap);
+    --side-w: 244px; --topbar-h: 56px;
+    --dur: 160ms; --dur-spin: .8s; --dur-leave: 200ms; --ease: cubic-bezier(.2, 0, 0, 1);
+    --focus-w: 2px; --focus-offset: 2px; --focus-offset-field: 1px; --focus-offset-inset: -3px;
+    --border-w: 1px; --border-w-md: 1.5px; --border-w-lg: 2px; --border-w-xl: 3px;
+    --r-0: 0; --r-xs: 4px; --r-s: 8px; --r-m: 12px; --r-l: 16px; --r-pill: 999px;
+    --text-xs: 12px; --text-sm: 14px; --text-md: 16px; --text-lg: 18px; --text-xl: 20px; --text-2xl: 24px; --text-3xl: 28px; --text-4xl: 32px;
+    --leading-none: 1; --leading-tight: 1.2; --leading-snug: 1.35; --leading-body: 1.5; --leading-loose: 1.6;
+    --tracking-none: 0; --tracking-body: -.003em; --tracking-snug: -.01em; --tracking-tight: -.02em; --tracking-label: .05em; --tracking-nav: .07em; --tracking-star: 1px;
+    --icon-stroke: 1.8; --blur-topbar: 10px;
+    --z-base: 0; --z-raised: 1; --z-sticky: 10; --z-overlay: 20; --z-modal: 30; --z-toast: 40; --z-skip: 50;
+    --ink-inverse: #fff; --ink-warm: #2b1d00;
+    --highlight: rgba(255, 255, 255, .15);
+
+    --font: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: var(--font-jetbrains-mono), ui-monospace, Menlo, monospace;
+    --h1: 600 var(--text-2xl)/var(--leading-snug) var(--font); --h1-ls: var(--tracking-tight);
+
+    /* Meadow light */
+    --canvas: #fbfbfa; --surface: #ffffff; --surface-2: #f4f4f2; --surface-hover: #f0f0ee; --selected: #e3f3ef; --field-bg: #ffffff;
+    --border: #e6e6e3; --border-strong: #7e848e; --card-line: #e6e6e3;
+    --text: #1d2025; --text-2: #4a515c; --text-3: #5f6672; --link: #0b6b62;
+    --primary: #0f766e; --primary-hover: #115e59; --on-primary: #ffffff; --primary-soft: #e3f3ef; --primary-soft-text: #0b5a53; --focus: #0f766e;
+    --danger: #c53030; --on-danger: #ffffff; --danger-soft: #fdeeee; --danger-text: #a31b1b;
+    --success-soft: #e7f5ec; --success-text: #1c6a39; --warning-soft: #fdf3df; --warning-text: #7d4c00; --info-soft: #e9f0fb; --info-text: #1d4c8c;
+    --accent: #f5b100; --accent-soft: #fff1cc; --accent-text: #674800; --accent-ink: #2b1d00;
+    --nav-bg: #f5f5f3; --nav-text: #262a31; --nav-muted: #5f6672; --nav-hover: #ebebe8; --nav-active: #ffffff; --nav-active-text: #0b5a53; --nav-indicator: #0f766e; --nav-line: #e6e6e3;
+    --logo-bg: #0f766e; --logo-ink: #ffffff; --topbar-bg: #fbfbfa; --warning-dot: #d48806; --overlay: rgba(20, 22, 26, .4);
+    --shadow-1: 0 1px 2px rgba(16, 24, 40, .05), 0 1px 3px rgba(16, 24, 40, .07);
+    --shadow-2: 0 6px 16px -4px rgba(16, 24, 40, .12), 0 2px 4px rgba(16, 24, 40, .05);
+    --shadow-3: 0 24px 48px -12px rgba(16, 24, 40, .25);
+    color-scheme: light;
+
+    min-height: 100vh;
+    background: var(--canvas);
+    color: var(--text);
+    font: 400 var(--text-sm)/var(--leading-body) var(--font);
+    letter-spacing: var(--tracking-body);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Meadow dark. Not switched on yet: the screens still on the old look set their own
+     light colors. It is turned on once every screen uses these tokens. */
+  .office[data-theme="dark"] {
+    --canvas: #111214; --surface: #18191c; --surface-2: #1f2024; --surface-hover: #232428; --selected: #12302c; --field-bg: #18191c;
+    --border: #2a2c31; --border-strong: #7b818c; --card-line: #2a2c31;
+    --text: #ecedee; --text-2: #b4b8bf; --text-3: #959ba5; --link: #5fd4c4;
+    --primary: #2dd4bf; --primary-hover: #5eead4; --on-primary: #04201d; --primary-soft: #11302c; --primary-soft-text: #7ee8d9; --focus: #5eead4;
+    --danger: #f87171; --on-danger: #2a0909; --danger-soft: #3a1717; --danger-text: #fca5a5;
+    --success-soft: #102a1a; --success-text: #86efac; --warning-soft: #33240a; --warning-text: #fcd34d; --info-soft: #13223a; --info-text: #93c5fd;
+    --accent: #fbbf24; --accent-soft: #33280a; --accent-text: #fde68a; --accent-ink: #2b1d00;
+    --nav-bg: #141518; --nav-text: #d4d6da; --nav-muted: #959ba5; --nav-hover: #1d1e22; --nav-active: #26282d; --nav-active-text: #ffffff; --nav-indicator: #2dd4bf; --nav-line: #2a2c31;
+    --logo-bg: #2dd4bf; --logo-ink: #04201d; --topbar-bg: #111214; --warning-dot: #fbbf24; --overlay: rgba(0, 0, 0, .6);
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, .4);
+    --shadow-2: 0 8px 20px -6px rgba(0, 0, 0, .6);
+    --shadow-3: 0 24px 48px -12px rgba(0, 0, 0, .7);
+    color-scheme: dark;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .office { --dur: 0ms; }
+  }
+
+  /* ---------- Base ---------- */
+  .office *, .office *::before, .office *::after { box-sizing: border-box; }
+  .office a { color: var(--link); }
+  .office small { font-size: var(--text-xs); }
+  .office :focus-visible { outline: var(--focus-w) solid var(--focus); outline-offset: var(--focus-offset); }
+  .office [hidden] { display: none !important; }
+  .office .sr-only { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+  .office .ic { width: var(--icon-sm); height: var(--icon-sm); flex: none; fill: none; stroke: currentColor; stroke-width: var(--icon-stroke); stroke-linecap: round; stroke-linejoin: round; }
+  .office .muted { color: var(--text-3); }
+  .office .center { text-align: center; }
+  .office .spacer { flex: 1; }
+  .office .only-mobile { display: none !important; }
+  .office .skip { position: absolute; left: var(--space-3); top: calc(var(--space-16) * -1); z-index: var(--z-skip); background: var(--primary); color: var(--on-primary); padding: var(--space-3) var(--space-4); border-radius: var(--r-s); }
+  .office .skip:focus { top: var(--space-3); }
+
+  /* ---------- Buttons ---------- */
+  .office .btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); height: var(--size-md); padding: 0 var(--space-4); border: var(--border-w) solid transparent; border-radius: var(--r-s); font: 500 var(--text-sm)/var(--leading-none) var(--font); cursor: pointer; text-decoration: none; white-space: nowrap; transition: background-color var(--dur) var(--ease), border-color var(--dur) var(--ease), color var(--dur) var(--ease); }
+  .office .btn-primary { background: var(--primary); color: var(--on-primary); box-shadow: 0 var(--border-w) 0 var(--highlight) inset, var(--shadow-1); }
+  .office .btn-primary:hover { background: var(--primary-hover); }
+  .office .btn-secondary { background: var(--surface); color: var(--text); border-color: var(--border-strong); }
+  .office .btn-secondary:hover { background: var(--surface-hover); }
+  .office .btn-ghost { background: transparent; color: var(--text); }
+  .office .btn-ghost:hover { background: var(--surface-hover); }
+  .office .btn-danger { background: var(--danger); color: var(--on-danger); }
+  .office .btn-danger:hover { filter: brightness(.92); }
+  .office .btn-sm { height: var(--size-sm); padding: 0 var(--space-3); font-size: var(--text-sm); }
+  .office .btn-lg { height: var(--size-lg); padding: 0 var(--space-5); font-size: var(--text-md); }
+  .office .btn-icon { width: var(--size-md); padding: 0; }
+  .office .btn-icon.btn-sm { width: var(--size-sm); }
+  .office .btn-block { width: 100%; }
+  .office .btn:disabled { background: var(--surface-2); color: var(--text-3); border-color: var(--border); cursor: not-allowed; filter: none; box-shadow: none; }
+  .office .btn[aria-busy="true"] { cursor: progress; }
+  .office .btn[aria-busy="true"]::before { content: ""; width: var(--icon-sm); height: var(--icon-sm); border-radius: 50%; border: var(--border-w-lg) solid currentColor; border-right-color: transparent; animation: office-spin var(--dur-spin) linear infinite; }
+  @keyframes office-spin { to { transform: rotate(360deg); } }
+
+  /* ---------- Fields ---------- */
+  .office .field { display: grid; gap: var(--space-2); align-content: start; min-width: 0; }
+  .office .label { font: 500 var(--text-sm)/var(--leading-body) var(--font); color: var(--text); }
+  .office .label .opt { font-weight: 400; color: var(--text-2); }
+  .office .help { font-size: var(--text-sm); line-height: var(--leading-snug); color: var(--text-2); overflow-wrap: anywhere; }
+  .office .input { width: 100%; min-height: var(--size-md); padding: 0 var(--space-3); border: var(--border-w) solid var(--border-strong); border-radius: var(--r-s); background: var(--field-bg); color: var(--text); font: 400 var(--text-sm)/var(--leading-body) var(--font); transition: border-color var(--dur) var(--ease); }
+  .office .input::placeholder { color: var(--text-3); }
+  .office .input:hover { border-color: var(--text-2); }
+  .office .input:focus-visible { outline: var(--focus-w) solid var(--focus); outline-offset: var(--focus-offset-field); }
+  .office .pw { display: flex; gap: var(--space-2); align-items: center; }
+  .office .pw .input { flex: 1; }
+
+  /* ---------- Alerts and counts ---------- */
+  .office .alert { display: grid; grid-template-columns: var(--space-5) 1fr; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-radius: var(--r-m); border: var(--border-w) solid var(--border); font-size: var(--text-sm); line-height: var(--leading-body); }
+  .office .alert > .ic { width: var(--icon-md); height: var(--icon-md); }
+  .office .alert b { display: block; font-weight: 600; }
+  .office .alert p { margin: var(--space-half) 0 0; color: var(--text-2); }
+  .office .a-info { background: var(--info-soft); } .office .a-info > .ic { color: var(--info-text); }
+  .office .a-success { background: var(--success-soft); } .office .a-success > .ic { color: var(--success-text); }
+  .office .a-warning { background: var(--warning-soft); } .office .a-warning > .ic { color: var(--warning-text); }
+  .office .a-danger { background: var(--danger-soft); border-color: var(--danger); } .office .a-danger > .ic { color: var(--danger-text); }
+  .office .count { display: inline-grid; place-items: center; min-width: var(--space-5); height: var(--space-5); padding: 0 var(--space-2); border-radius: var(--r-pill); background: var(--accent); color: var(--accent-ink); font: 700 var(--text-xs)/var(--leading-none) var(--font); margin-left: auto; }
+  .office .avatar { width: var(--space-8); height: var(--space-8); border-radius: 50%; display: grid; place-items: center; background: var(--primary-soft); color: var(--primary-soft-text); font: 600 var(--text-xs)/var(--leading-none) var(--font); flex: none; }
+
+  /* ---------- Card ---------- */
+  .office .card { background: var(--surface); border: var(--border-w) solid var(--card-line); border-radius: var(--r-m); box-shadow: var(--shadow-1); min-width: 0; }
+  .office .card-body { padding: var(--pad); display: flex; flex-direction: column; gap: var(--stack); }
+  .office .card-body > * { margin-block: 0; min-width: 0; }
+
+  /* ---------- Menus ---------- */
+  .office .pop-wrap { position: relative; }
+  .office .pop { position: absolute; top: calc(100% + var(--space-2)); left: 0; z-index: var(--z-overlay); min-width: calc(var(--space-24) * 2 + var(--space-5) + var(--space-2)); background: var(--surface); color: var(--text); border: var(--border-w) solid var(--border); border-radius: var(--r-m); box-shadow: var(--shadow-3); padding: var(--space-2); display: grid; gap: var(--space-half); }
+  .office .pop-right { left: auto; right: 0; }
+  .office .pop-up { top: auto; bottom: calc(100% + var(--space-2)); left: 0; right: 0; min-width: calc(var(--space-20) * 3 + var(--space-5)); }
+  .office .pop-head { display: grid; padding: var(--space-2) var(--space-3) var(--space-3); border-bottom: var(--border-w) solid var(--border); margin-bottom: var(--space-1); overflow-wrap: anywhere; }
+  .office .pop-head small { color: var(--text-2); }
+  .office .pop-item { display: flex; gap: var(--space-3); align-items: center; padding: var(--space-2) var(--space-3); border-radius: var(--r-s); color: var(--text); text-decoration: none; background: none; border: 0; font: 500 var(--text-sm) var(--font); cursor: pointer; text-align: left; width: 100%; }
+  .office .pop-item:hover { background: var(--surface-hover); }
+
+  /* ---------- Sidebar shell ---------- */
+  .office .shell-side { display: grid; grid-template-columns: var(--side-w) minmax(0, 1fr); min-height: 100vh; }
+  .office .side { position: sticky; top: 0; height: 100vh; background: var(--nav-bg); color: var(--nav-text); display: flex; flex-direction: column; padding: var(--space-3); gap: var(--space-half); z-index: var(--z-sticky); border-right: var(--border-w) solid var(--border); }
+  .office .brand { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2) var(--space-4); color: inherit; text-decoration: none; }
+  .office .logo { width: var(--space-8); height: var(--space-8); border-radius: var(--r-s); display: grid; place-items: center; background: var(--logo-bg); color: var(--logo-ink); font: 700 var(--text-sm)/var(--leading-none) var(--font); flex: none; }
+  .office .brand-text { display: grid; line-height: var(--leading-tight); flex: 1; min-width: 0; }
+  .office .brand-text b { font-size: var(--text-sm); letter-spacing: var(--tracking-snug); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .office .brand-text small { color: var(--nav-muted); font-size: var(--text-xs); }
+  .office .side-toggle { margin-left: auto; color: var(--nav-muted); width: var(--size-sm); height: var(--size-sm); }
+  .office .side-toggle:hover, .office .side-close:hover { background: var(--nav-hover); }
+  .office .side-close { color: var(--nav-text); }
+  /* The link list scrolls, not the sidebar, so the account menu can open past the sidebar edge. */
+  .office .nav { display: grid; align-content: start; gap: var(--space-half); flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  .office .nav-sec { font: 500 var(--text-xs)/var(--leading-snug) var(--font); color: var(--nav-muted); padding: var(--space-4) var(--space-3) var(--space-1); }
+  .office .nav-item { display: flex; align-items: center; gap: var(--space-3); min-height: var(--size-sm); padding: 0 var(--space-3); border-radius: var(--r-s); color: var(--nav-text); text-decoration: none; font-weight: 500; font-size: var(--text-sm); position: relative; }
+  .office .nav-item .ic { color: var(--nav-muted); }
+  .office .nav-item:hover { background: var(--nav-hover); }
+  .office .nav-item:focus-visible { outline-offset: var(--focus-offset-inset); }
+  .office .nav-item[aria-current="page"] { background: var(--nav-active); color: var(--nav-active-text); box-shadow: var(--shadow-1); font-weight: 600; }
+  .office .nav-item[aria-current="page"] .ic { color: var(--nav-indicator); }
+
+  /* Account menu */
+  .office .me-wrap { margin-top: auto; border-top: var(--border-w) solid var(--border); padding-top: var(--space-2); }
+  .office .me { width: 100%; margin: 0; display: flex; gap: var(--space-3); align-items: center; border: 0; background: none; color: var(--nav-text); font: inherit; text-align: left; cursor: pointer; padding: var(--space-2); border-radius: var(--r-s); }
+  .office .me:hover { background: var(--nav-hover); }
+  .office .me-text { flex: 1; min-width: 0; display: grid; line-height: var(--leading-tight); }
+  .office .me-text b { font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .office .me-text small { color: var(--nav-muted); font-size: var(--text-xs); }
+  .office .me-chev { color: var(--nav-muted); }
+
+  /* Collapsed rail, on a computer only. On a tablet or phone the sidebar is a menu. */
+  @media (min-width: 961px) {
+    .office .is-collapsed { --side-w: 68px; }
+    .office .is-collapsed .side { padding: var(--space-3) var(--space-2); align-items: stretch; }
+    .office .is-collapsed .brand { flex-direction: column; gap: var(--space-2); padding: var(--space-1) 0 var(--space-3); }
+    .office .is-collapsed .brand-text, .office .is-collapsed .nav-sec, .office .is-collapsed .nav-label, .office .is-collapsed .me-text, .office .is-collapsed .me-chev { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .office .is-collapsed .side-toggle { margin: 0; }
+    .office .is-collapsed .nav-item { justify-content: center; padding: 0; min-height: var(--size-md); }
+    .office .is-collapsed .nav-item .count { position: absolute; top: var(--space-half); right: var(--space-1); min-width: var(--space-4); height: var(--space-4); padding: 0 var(--space-1); }
+    .office .is-collapsed .nav-sec + .nav-item { margin-top: var(--space-3); }
+    .office .is-collapsed .me { justify-content: center; padding: var(--space-2) 0; }
+    .office .is-collapsed .pop-up { left: 0; right: auto; }
+  }
+
+  /* Top bar and page */
+  .office .body { min-width: 0; display: flex; flex-direction: column; }
+  .office .topbar { position: sticky; top: 0; z-index: var(--z-sticky); display: flex; align-items: center; gap: var(--space-3); min-height: var(--topbar-h); padding: 0 var(--space-6); background: color-mix(in srgb, var(--canvas) 82%, transparent); backdrop-filter: saturate(1.4) blur(var(--blur-topbar)); border-bottom: var(--border-w) solid var(--border); }
+  .office .topbar-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .office .side-scrim { display: none; }
+  .office .main { padding: var(--space-6) var(--space-8) var(--space-24); max-width: var(--w-xl); width: 100%; margin: 0 auto; outline: none; display: flex; flex-direction: column; align-items: stretch; gap: var(--stack); }
+  .office .main > * { margin-block: 0; min-width: 0; }
+
+  /* ---------- Login ---------- */
+  .office .login { min-height: 100vh; display: grid; place-items: center; padding: var(--space-10) var(--space-4); outline: none; }
+  .office .login-box { width: min(calc(var(--space-24) * 4 + var(--space-8) + var(--space-1)), 100%); display: flex; flex-direction: column; gap: var(--stack); }
+  .office .login-box > * { margin-block: 0; min-width: 0; }
+  .office .login-brand { display: flex; gap: var(--space-3); align-items: center; justify-content: center; margin-bottom: var(--space-1); font-size: var(--text-md); }
+  .office .login-card .card-body { padding: var(--space-8); gap: var(--space-5); }
+  .office .login h1 { font: var(--h1); letter-spacing: var(--h1-ls); outline: none; }
+  .office .login .desc { color: var(--text-2); margin-top: var(--space-1); overflow-wrap: anywhere; }
+
+  /* ---------- Tablet: the sidebar becomes a menu ---------- */
+  @media (max-width: 960px) {
+    .office .only-mobile { display: inline-flex !important; }
+    .office .shell-side { grid-template-columns: 1fr; }
+    .office .side-toggle { display: none; }
+    .office .side { position: fixed; left: 0; top: 0; bottom: 0; height: 100vh; z-index: var(--z-modal); width: min(calc(var(--space-24) * 3 + var(--space-3)), 86vw); transform: translateX(-102%); visibility: hidden; transition: transform var(--dur) var(--ease), visibility 0s linear var(--dur); box-shadow: var(--shadow-3); }
+    .office .nav-open .side { transform: none; visibility: visible; transition: transform var(--dur) var(--ease), visibility 0s; }
+    .office .nav-open .side-scrim { display: block; position: fixed; inset: 0; background: var(--overlay); z-index: var(--z-overlay); }
+    .office .topbar { padding: 0 var(--space-3); }
+    .office .main { padding: var(--space-5) var(--space-4) var(--space-24); }
+  }
+
+  /* ---------- Phone ---------- */
+  @media (max-width: 720px) {
+    .office .input { font-size: var(--text-md); }
+    .office .login { padding: var(--space-4) var(--space-3); }
+    .office .login-card .card-body { padding: var(--space-5) var(--space-4); }
+    .office .pop, .office .pop-right, .office .pop-up { max-width: calc(100vw - var(--space-6)); }
+  }
+
+  @media (forced-colors: active) {
+    .office .btn, .office .input, .office .card, .office .nav-item[aria-current="page"] { border: var(--border-w) solid CanvasText; }
+  }
+}
