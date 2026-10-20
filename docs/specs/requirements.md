@@ -65,7 +65,7 @@ These rules fill the quote before anyone edits a single night or a single day.
 | BR-32 | When the package includes transport, vehicle cost equals the number of vehicles times ((daily rent plus daily fuel) times the number of days, plus the toll once). The toll is once per vehicle. Hotel only does not include transport, so it has no vehicle cost. |
 | BR-33 | If the group needs more seats than one vehicle has, the quote adds more vehicles. |
 | BR-34 | If the office does not type a room count, rooms equal the people who need a seat, divided by 3, rounded up. A seat is each adult, each child, and each infant with their own seat. An infant on a lap is not a seat. |
-| BR-35 | When the package includes a hotel, hotel cost follows the catalog chain: city, then hotel, then room, then occupancy. The nightly rate is that catalog row, including an extra mattress when occupancy asks for one. Grade is a label on the hotel, not the price. The cost is that nightly rate times nights times rooms. Until the catalog pick is changed, the untouched quote uses the published twin rate for the grade label. That default is pending Moeen sign-off. |
+| BR-35 | When the package includes a hotel, hotel cost is the nightly rate times nights times rooms. Until the hotel catalog is built, the nightly rate is the grade rate in BR-84. When the catalog is built, in task T-39, hotel cost follows the catalog chain: city, then hotel, then room, then occupancy. The nightly rate is that catalog row, including an extra mattress when occupancy asks for one. Grade is a label on the hotel, not the price. Until the catalog pick is changed, the untouched quote uses the published twin rate for the grade label. The Meadow prototype shows the catalog with sample hotels. That default is pending Moeen sign-off. |
 | BR-36 | A guide, if selected, is 5,000 rupees per day. |
 | BR-37 | Meals, if selected, are per adult and per child, per night: Deluxe 1,200, Executive 2,000, Luxury 2,500, Ultra Luxury 3,000. |
 | BR-38 | When the package includes transport and a hotel, on a road trip longer than one day, arrival breakfast is 500 rupees per adult and per child. No hotel does not add it. Hotel only does not add it. |
@@ -156,6 +156,9 @@ Pictures and PDFs use the public media store for that environment, through `@ver
 | BR-81 | The Meadow prototype is the clickable file `docs/office-design/meadow.html`. On the preview site it is also `https://new.travelwithmoeen.com/meadow`. That path is not `/office`. The Owner, Manager, and Editor links match BR-01 to BR-07. The Owner and the Editor can delete a tour. A Manager cannot. Profit margin is any whole percent from 0 to 100, with a slider. The hotel catalog is city, then hotel, then room, then occupancy, and the rate fills from that row. Grade is a label on the hotel. With hotel can use one catalog pick for every night, or a catalog pick on each night, in one click. The quote has With hotel, No hotel, and Hotel only. Each mode has one guest total. Guests on the website get those three choices and see only the final total. A package with neither a hotel nor other services is refused. A tour has a Places multi-select, and the place page lists Tours at this place. The dashboard says the mismatch with the costing file is being checked. A day edit changes a transport quote. Changing the number of days on a hotel-included quote sets hotel nights to days minus one. Trip plans show Phase 2 and Phase 3 for review, including the Season by month table. The layout fits a computer and a phone. The zip is that same folder. Moeen receives this file before the live office is rebuilt. |
 | BR-82 | The next sprint builds the Meadow look into the live office at `/office`. The screens match `docs/office-design/meadow.html`. The public site look does not change. Login, roles, quotes, guest requests, and media uploads stay as they are. The prototype bar that switches role without a password is not part of the live office. |
 | BR-83 | The Owner and the Editor can add a tour from `/office/tours`, amend a tour from that list, and delete a tour. A Manager cannot. A price row and a guest request stay with the Owner, which is BR-03 and BR-06. A tour can link to one or more places. The office and the public tour page list those places, and the office and the public place page list those tours. The tour name stays on the tour. The place title stays on the place. Saving a tour does not rewrite the place guide. Saving a place title updates a linked tour's location line only when that tour links to this place alone and that line is the previous title. |
+| BR-84 | Until the hotel catalog in T-39 is built, a hotel night in the live office and on the website uses the loaded hotel rate for the place, start city, and grade: the twin rate for two or fewer in a room, and the 3-share rate for more. Change per night picks a grade, or types a rate, on that night. This is the night edit in BR-46. The live office does not show the sample catalog hotels from the prototype. |
+| BR-85 | The Meadow office is built in parts. The look and the screens are built before Moeen signs off. A price rule that is pending Moeen sign-off is built only after the matching row in the sign-off table in `docs/specs/tasks.md` is Approved or Changed. If Moeen changes a rule, the requirement and the design change first, then the code. |
+| BR-86 | The office records who saved what, and when. Each successful office save writes one activity row: the time, the signed-in login, the area, the record, and a short line such as "Saved tour 5 Days Trip to Skardu". A failed or refused save writes no row. A row does not hold a password, a token, a secret, or a guest phone or message. The dashboard lists recent rows. A person sees only rows for areas their role can open. Each content and rate screen shows "Saved by" and the time of the last save on that record. Rows are kept for 365 days. |
 
 Creating a new tour, place, or blog post is not part of the office-media work. Adding a tour from the tours list is BR-83. Deleting a price row stays BR-03 and is not part of this work. The prototype changes no running route, so it does not repeat the four security tests. T-35 does.
 
@@ -184,7 +187,7 @@ Step 3 is done when a test contact and a test booking stay in the office list, W
 
 Office media is done when BR-75 to BR-80 pass. An Editor can upload and remove a tour extra photo, a tour PDF, a place banner, a place section photo, a blog cover, a blog section photo, and a review avatar. A blog section can be added and removed. A place section can be removed. A Manager upload is refused. A file that is not a PDF is refused in the PDF field. A PDF over 10 MB is refused. A picture over 5 MB is refused. The public page on the preview site shows the file. Replacing or removing an office file deletes that file, including the office files on a deleted tour. A path under `/images/` or `/pdfs/` still loads.
 
-The Meadow prototype file is done. BR-81 passes on `main`. Moeen still needs that file. The live Meadow office is done when BR-82 passes: `/office` matches `docs/office-design/meadow.html`, the public site look is unchanged, and a person cannot change role without signing in.
+The Meadow prototype file is done. BR-81 passes on `main`. Moeen still needs that file. The live Meadow office is done when BR-82 and BR-84 to BR-86 pass: `/office` matches `docs/office-design/meadow.html`, the public site look is unchanged, a person cannot change role without signing in, and rows S-1 to S-8 in the sign-off table in `docs/specs/tasks.md` are Approved or Changed.
 
 ## 11. Security
 
@@ -226,7 +229,7 @@ The backup closes in T-23. Sprint 4 downloads close in the same sprint that buil
 
 ## 12. Security tests
 
-Four tests are the minimum. The same four run at the end of Step 2, again before Step 3 is accepted, again before T-25 is accepted, and again before T-35 is accepted. Sprint 4 does not replace them with a different set. A step is not done if any of the four fails. Do not hide a failure with an ignore flag unless the step note names the package, the finding, and why it cannot be fixed in that step.
+Four tests are the minimum. The same four run at the end of Step 2, again before Step 3 is accepted, again before T-25 is accepted, again before T-35 is accepted, and again before T-37 is accepted. Sprint 4 does not replace them with a different set. A step is not done if any of the four fails. Do not hide a failure with an ignore flag unless the step note names the package, the finding, and why it cannot be fixed in that step.
 
 | ID | Test | Minimum |
 |---|---|---|
@@ -256,6 +259,8 @@ Step 3 adds, and later runs keep them: a message over 4,000 characters is refuse
 
 Office media adds, and later runs keep them: a Manager upload returns 403, a file that is not a PDF is refused in the PDF field, and the public page shows an Editor upload.
 
+The Meadow office, T-37, adds, and later runs keep them: an Editor margin save returns 403, a margin of 101 or 12.5 is refused, a guest quote response has no lines and no profit in each hotel choice, a package with neither a hotel nor other services is refused, and a Manager does not receive content rows from `GET /api/office/activity`.
+
 Sprint 4 adds: the driver copy has no rupee amount. The guest download has one total. An Editor cannot download the live price Excel file.
 
 ## 13. Who may call what
@@ -277,6 +282,7 @@ This list is the whole project. A new office route is added to this list in the 
 | `POST /api/office/tours/delete` | Owner or Editor. Deletes a tour. A Manager is refused. |
 | Create a login, remove a login, change a role, delete a price row, delete a guest request | Owner only. |
 | `GET /api/office/requests` | A signed-in Owner, Manager, or Editor. |
+| `GET /api/office/activity` | A signed-in Owner, Manager, or Editor. Returns only rows for areas that role can open, which is BR-86. Read only. |
 | `GET /api/office/rates` | Owner or Manager. |
 | `POST /api/office/requests/status` | Owner or Manager. |
 | `POST /api/office/requests/delete` | Owner only. |
