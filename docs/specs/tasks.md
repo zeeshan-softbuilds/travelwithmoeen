@@ -6,9 +6,9 @@
 **Proposal:** TWM-SOW-001, version 1.3  
 **Also read:** `docs/rules/project-structure.md` and `docs/rules/coding-standards.md`  
 
-The plan is four sprints of two weeks, plus the Meadow office before Phase 2. Sprints 1 and 2 are the baseline. Those tasks are built. Office media, T-29 through T-35, is built. The Meadow file, T-36, is on `main`. T-36a updates that prototype for Moeen's sign-off. The next build sprint is T-37: share that file with Moeen, then build that look into `/office`. Sprint 3 is Phase 2. Sprint 4 is Phase 3. T-37 is accepted before Phase 2 starts. Phase 2 is accepted before Phase 3 starts. Read the requirements and the design before a new task. The quote math is in design section 5. Do not invent a second formula.
+The plan is four sprints of two weeks, plus the Meadow office before Phase 2. Sprints 1 and 2 are the baseline. Those tasks are built. Office media, T-29 through T-35, is built. The Meadow file, T-36, is on `main`. T-36a updated that prototype for Moeen's sign-off and is accepted. The next build sprint is T-37: share that file with Moeen, then build that look into `/office`. Sprint 3 is Phase 2. Sprint 4 is Phase 3. T-37 is accepted before Phase 2 starts. Phase 2 is accepted before Phase 3 starts. Read the requirements and the design before a new task. The quote math is in design section 5. Do not invent a second formula.
 
-T-01 through T-36 are accepted. Do not reopen them. T-36a is the prototype update before T-37. Do not start the live office, Phase 2, or Phase 3 in T-36a. Do not start Phase 2 or Phase 3 until T-37 is accepted. The four security tests in section 12 run again before T-37 is accepted. Follow `docs/rules/project-structure.md` and `docs/rules/coding-standards.md` on every change. Step 1 office saves, and every later save, go through `app/api` and `lib/`. Do not add a server action for a new save. Security checks close in the step named in `docs/specs/requirements.md` section 11. The four security tests in section 12 run at the end of Step 2, Step 3, T-25, T-35, and T-37. Do not move a check into the next step. T-36a does not repeat the four security tests.
+T-01 through T-36, and T-36a, are accepted. Do not reopen them. Do not start Phase 2 or Phase 3 until T-37 is accepted. The four security tests in section 12 run again before T-37 is accepted. Follow `docs/rules/project-structure.md` and `docs/rules/coding-standards.md` on every change. Step 1 office saves, and every later save, go through `app/api` and `lib/`. Do not add a server action for a new save. Security checks close in the step named in `docs/specs/requirements.md` section 11. The four security tests in section 12 run at the end of Step 2, Step 3, T-25, T-35, and T-37. Do not move a check into the next step. T-36a does not repeat the four security tests.
 
 ## Step 1. Office can edit public pages
 
@@ -72,21 +72,64 @@ Do this before Phase 2. Office media is design section 7c and BR-75 to BR-80. T-
 | T-34 | When a gallery photo, a home slide, a tour main photo, or a whole tour is replaced or removed, delete the office files. | BR-79 | The old office file is gone. Deleting a tour also deletes its office extra photos and office PDF. A photo that still uses `/images/` still loads. |
 | T-35 | Add these cases to the step script that already runs Step 3, and run the four security tests again. Update `docs/office-guide.md` so it matches the new controls. A new route is added to requirements section 13 in the same change. | BR-75, BR-62, BR-71 to BR-74 | The script still runs the Step 1, 2, and 3 cases. It refuses a Manager upload, accepts an Editor JPEG, refuses a non-PDF in the PDF field, and shows the file on the public page. `npm run lint`, `npm run check:sca`, and the ZAP baseline pass. |
 | T-36 | Meadow design prototype. Accepted on `main` in pull request 11. | BR-81 | Done. `docs/office-design/meadow.html` is on `main`. The Owner, Manager, and Editor links match BR-01 to BR-07. The Quote tab has the night edit and the day edit. The zip matches that folder in git. No file under `app/`, `components/`, or `lib/` changed. This task does not repeat the four security tests. |
-| T-36a | Update the Meadow prototype for Moeen's sign-off. Prototype only. Do not change `app/`, `components/`, `lib/`, or `drizzle/`, and do not change the database. Do not deploy. | BR-81, BR-03, BR-04, BR-06, BR-11, BR-22, BR-31, BR-32, BR-35, BR-38, BR-41, BR-42, BR-43, BR-44, BR-83 | The Skardu test is still 140,400 at a profit margin of 20 percent. No hotel and Hotel only each show one guest total. A package with neither a hotel nor other services is refused. Same hotel all nights and Change per night switch in one click. An Editor can delete a tour and a Manager cannot. Tour and place links show on both screens. Profit margin is a whole percent from 0 to 100. The Season by month table stays. The layout fits a phone. The zip matches the folder. The new defaults are marked pending Moeen sign-off. No file outside the allowed list changes. |
+| T-36a | Accepted on `main` in pull request 15. Update the Meadow prototype for Moeen's sign-off. Prototype only. Do not change `app/`, `components/`, `lib/`, or `drizzle/`, and do not change the database. Do not deploy. | BR-81, BR-03, BR-04, BR-06, BR-11, BR-22, BR-31, BR-32, BR-35, BR-38, BR-41, BR-42, BR-43, BR-44, BR-83 | The Skardu test is still 140,400 at a profit margin of 20 percent. No hotel and Hotel only each show one guest total. A package with neither a hotel nor other services is refused. Same hotel all nights and Change per night switch in one click. An Editor can delete a tour and a Manager cannot. Tour and place links show on both screens. Profit margin is a whole percent from 0 to 100. The Season by month table stays. The layout fits a phone. The zip matches the folder. The new defaults are marked pending Moeen sign-off. No file outside the allowed list changes. |
 
 ## Next sprint. Meadow office for Moeen
 
-Promised to Moeen. Do this before Phase 2. The clickable file is T-36. This task builds that look into the live office.
+Promised to Moeen. Do this before Phase 2. The clickable file is T-36. This task builds that look into the live office. Design section 11 says how.
 
-| ID | Task | Covers | Done when |
-|---|---|---|---|
-| T-37 | Send Moeen `docs/office-design/meadow.html`, then rebuild `/office` to match it. | BR-81, BR-82, BR-01 to BR-07, BR-75 to BR-80 | Moeen has the prototype file. That file prices each night, applies a day edit, and fits a phone. The live office screens match that file, including Dashboard, Requests, Rates and quotes, the content screens, Users, and Backups. A person still signs in with email and password. The prototype role switch is not on the live office. The public site look is unchanged. Night and day edits, guest requests, and media uploads still work. `npm run check:step3` still passes, and the four security tests pass. |
+Moeen has the prototype at `https://new.travelwithmoeen.com/meadow`. On 20 October 2026 he was asked for a final go-ahead on the points in the sign-off table below. T-37 is split so the look can be built while he answers. A task marked **Now** starts now. A task marked **After sign-off** starts only when every sign-off row it names is Approved or Changed.
+
+### Moeen sign-off
+
+This table is the record of what Moeen decided. The numbers match the WhatsApp message of 20 October 2026, so his reply maps to a row. When he answers, update the row first. If he asks for a change, write the change in the Decision column, and change the requirement and design text in the same pull request. A task reads its rule from the requirement, not from chat.
+
+| Row | Point | Status | Decision | Gates |
+|---|---|---|---|---|
+| S-1 | Overall look and screens: Dashboard, Requests, Rates and quotes, Tours, Places, Users, Backups | Asked | | T-37j |
+| S-2 | Profit margin starts at 20 percent and is any whole percent from 0 to 100 | Asked | | T-37f starting value only |
+| S-3 | Hotel choice on a quote: With hotel (default), No hotel, Hotel only | Asked | | T-37h |
+| S-4 | With hotel: Same hotel all nights is the default, and Change per night is one click | Asked | | T-37h |
+| S-5 | No hotel keeps the other services, with no hotel, rooms, meals, or breakfast | Asked | | T-37h |
+| S-6 | Hotel only asks for the city and nights, with no vehicle, guide, tickets, or extras | Asked | | T-37h |
+| S-7 | A package with neither a hotel nor other services is refused | Asked | | T-37h |
+| S-8 | Guests on the website get the same three choices and see one total. Staff see the lines and the profit | Asked | | T-37h |
+| S-9 | One example trip where the dashboard does not match the costing file | Asked 14 October 2026 | | Not T-37. The dashboard note stays a placeholder. |
+
+Status is Asked, Approved, or Changed. A look change Moeen asks for on one screen goes into that screen's task. A change to a price rule goes into the requirement first.
+
+### T-37 tasks
+
+Build in the order of the table, except T-37k, which comes after T-37b and T-37c. One pull request per task, into the fork `main`. Each pull request names its task, such as T-37a. The public site look does not change in any of them, except that T-37h adds the three hotel choices to the guest package builder, which is BR-50. A task that changes behavior, T-37f, T-37h, and T-37k, adds its cases to `scripts/check-step3.ts` in its own pull request, as the coding standards ask. `npm run check:step3` passes at the end of each one.
+
+| ID | Gate | Task | Covers | Done when |
+|---|---|---|---|---|
+| T-37a | Now | Meadow tokens and the office shell. Port the colors, spacing, type, radius, and focus tokens from `docs/office-design/src/base.css` and `meadow.css` into an office-only stylesheet. Rebuild `OfficeShell` as the prototype sidebar, top bar, and phone menu. Restyle `/office/login`. | BR-82, BR-08, BR-16 | Every office page renders inside the new shell. The sidebar groups and links match the prototype `NAV` for each role. A link a role cannot use is not shown. The login page matches the prototype login. A public page still renders the same as before. The layout fits a phone. |
+| T-37b | Now | Dashboard and Requests. The dashboard shows what the database already holds: new requests, the active profit margin, and the last backup. Requests gets the prototype list, filters, and detail view. | BR-82, BR-03, BR-05, BR-15 | The request status rules still hold: Editor reads only, Manager and Owner change status, Owner deletes. The dashboard note about the costing file stays a placeholder (S-9). The activity feed comes in T-37k. |
+| T-37c | Now | Content screens: Tours, Places, Blog, Gallery, Reviews, Home slides, and Site details. Use the prototype list, form, and preview frame. Keep every upload and remove control from T-29 to T-35, and the tour and place links from T-38. | BR-82, BR-05, BR-75 to BR-80, BR-83 | An Editor still uploads and removes each file type. A Manager is still refused. Add, amend, and delete a tour still work. The links show on both the tour and the place. |
+| T-37d | Now | Users and Backups. | BR-82, BR-02 | Only the Owner sees and uses both. The last Owner still cannot be removed. Back up now and Download still work. |
+| T-37e | Now | Rates screens: hotels, vehicles, jeep lines, and air extras, in the prototype layout. | BR-82, BR-04, BR-70 | A Manager saves a rate. An Editor cannot open the screen and the server refuses the save. A blank, negative, or non-numeric amount is refused. |
+| T-37f | Now | Profit margin. Replace the 15 or 20 season choice with one whole percent from 0 to 100, with a slider, on the Rates screen and the Quote screen. Moeen asked for this on 14 October 2026 and was told it is in the current work. | BR-22, BR-43, BR-44, BR-70 | 16 and 30 percent can be saved. 101, -1, and 12.5 are refused. The Skardu test is still 140,400 at 20 percent. Changing the margin changes only the profit. The starting value is 20 percent until S-2 is answered. |
+| T-37g | Now | Quote screen look, with the night and day edits that already exist. | BR-82, BR-45 to BR-49 | A night-two edit still changes only that night and the average. Clearing one day still removes that day's rent. The guest still sees one total. |
+| T-37h | After sign-off: S-3 to S-8 | Hotel choices. Add With hotel, No hotel, and Hotel only to `lib/quote.ts`, the office Quote screen, `POST /api/quote`, and the guest package builder. Add Same hotel all nights and Change per night under With hotel. | BR-31, BR-32, BR-38, BR-39, BR-41, BR-42, BR-50, design section 5 | Each mode has one guest total. A package with neither a hotel nor other services is refused with 400. The Skardu test is still 140,400 with With hotel. The guest builder shows the three choices and one total. A guest response has no lines and no profit. |
+| T-37i | Now, last | Close T-37. Run the full `scripts/check-step3.ts` with the cases T-37f, T-37h, and T-37k added. Update `docs/office-guide.md` to the new screens. Run the browser check in BR-57 on the office. When S-1 is Approved, remove `GET /meadow` and its row in requirements section 13. | BR-71 to BR-74, BR-56, BR-57 | The four security tests pass. The office guide matches the screens. The script proves the new margin, hotel-choice, and activity cases, including that a Manager cannot read content activity. `/meadow` is gone after S-1 is Approved. |
+| T-37j | After sign-off: S-1 | Look changes Moeen asks for in S-1, on the screens they name. | BR-82 | Each change in the S-1 Decision column is on the live screen. |
+| T-37k | Now, after T-37b and T-37c | Activity record and "saved by". Add the `activity` table in design section 11. Each office save writes one row in the same `lib/` function that saves. Add `GET /api/office/activity`. Show the feed on the dashboard, and "Saved by" with the time on each content and rate screen. | BR-86, BR-60, BR-61 | An Editor saves a tour, and the dashboard and the tour screen show who saved it and when. A Manager sees rate and request rows and does not see content rows. An Editor does not see rate rows. A failed save writes no row. No row holds a password, a token, a secret, or a guest phone or message. |
+
+T-37 is accepted when T-37a to T-37k are done, and rows S-1 to S-8 are Approved or Changed. S-9 does not hold up T-37.
 
 ## Not in T-37
 
+- The hotel catalog: city, then hotel, then room, then occupancy, with its own rates. The prototype shows it with sample hotels. It needs a new table and real hotel data, and Moeen was told on 14 October 2026 that it is an enhancement after this phase. Until it is built, a hotel night uses the grade rate from the loaded rate table, which is BR-84. It is task T-39 below.
+- Trip plans and the Season by month table. Those are Phase 2 and Phase 3.
+- The prototype role switch and the design system page. They stay in the prototype only.
 - A new place or blog post. A new tour is T-38.
 - Delete a price row. That remains BR-03.
 - Phase 2 or Phase 3.
+
+| ID | Task | Covers | Done when |
+|---|---|---|---|
+| T-39 | Hotel catalog. Not started. Plan it with Moeen after T-37 is accepted. It needs the list of hotels, rooms, and rates from the TWM team. | BR-35 | To be written when it is planned. |
 
 ## Tours and places, 14 October 2026
 

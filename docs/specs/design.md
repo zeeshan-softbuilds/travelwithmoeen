@@ -117,6 +117,7 @@ Main records:
 | Profit margin | A whole percent from 0 to 100. One active value. The prototype default is 20 percent, pending Moeen sign-off. |
 | Quote | The inputs, the night lines, the day lines, the extras, the total. |
 | Guest request | Contact, custom trip, or booking. Status. |
+| Activity | Who saved what in the office, and when. Added in T-37k. Section 11. |
 
 Tour price source is either `excel` or `website`. Ratti Gali, code 201, is `website` and keeps the price already stored on the tour. Other tours use `excel`.
 
@@ -157,7 +158,7 @@ The test quote is Islamabad, Skardu Valley, 5 days, 2 adults, Gli car, Deluxe, n
 
 ### Hotel package, pending Moeen sign-off
 
-The quote has three hotel choices. With hotel is the default and includes a hotel and other services. No hotel keeps the other services and drops the hotel line, nights, rooms, meals, stickers, and the road breakfast. Hotel only asks for the city and the number of nights, and drops the vehicle, day edits, toll, jeeps, guide, extras, breakfast, the Lahore extra, and, on air, the tickets, welcome pack, entry, sticker, and infant extra. Under With hotel, Same hotel all nights is the default: one catalog pick for every night. Change per night is one click and shows the catalog pick on each night. A package with neither a hotel nor other services is refused. Guests get the same three choices and see only the final total. Staff see the lines and one total for each mode. Hotel cost, when a catalog pick has been changed, follows city, then hotel, then room, then occupancy. Grade is a label on the hotel. Until that pick is changed, the untouched quote uses the published twin rate so the Skardu test stays 140,400. These defaults are pending Moeen sign-off.
+The quote has three hotel choices. With hotel is the default and includes a hotel and other services. No hotel keeps the other services and drops the hotel line, nights, rooms, meals, stickers, and the road breakfast. Hotel only asks for the city and the number of nights, and drops the vehicle, day edits, toll, jeeps, guide, extras, breakfast, the Lahore extra, and, on air, the tickets, welcome pack, entry, sticker, and infant extra. Under With hotel, Same hotel all nights is the default: one catalog pick for every night. Change per night is one click and shows the catalog pick on each night. A package with neither a hotel nor other services is refused. Guests get the same three choices and see only the final total. Staff see the lines and one total for each mode. Hotel cost, when a catalog pick has been changed, follows city, then hotel, then room, then occupancy. Grade is a label on the hotel. Until that pick is changed, the untouched quote uses the published twin rate so the Skardu test stays 140,400. These defaults are pending Moeen sign-off. The live office builds the three choices in T-37h, after sign-off. Until the catalog is built in T-39, a hotel night uses the grade rate, which is BR-84.
 
 ### Couple price on a tour card
 
@@ -276,7 +277,7 @@ The first delivery does not promise a new uptime number. If the site is down, ch
 
 ## 10. Later phases
 
-The next sprint is the Meadow office, BR-82. Moeen gets `docs/office-design/meadow.html` first. Then `/office` is rebuilt to match that file. The public site look stays. The prototype control that switches Owner, Manager, and Editor without a password stays out of the live office. This sprint is accepted before Phase 2.
+The next sprint is the Meadow office, BR-82. Moeen gets `docs/office-design/meadow.html` first. Then `/office` is rebuilt to match that file. The public site look stays. The prototype control that switches Owner, Manager, and Editor without a password stays out of the live office. This sprint is accepted before Phase 2. Section 11 says how it is built.
 
 Phase 2 is sprint 3. It is hours per stop, the labels Comfort, Luxury, Adventure, and Exploration, and the Kashmir, Swat, and Chitral jeep products. The four jeep lines in BR-27 stay in the baseline. Phase 2 does not start until BR-82 is accepted.
 
@@ -292,3 +293,84 @@ Phase 3 is sprint 4. These are not built in the baseline, in the next sprint, or
 - Excel download of the live prices. Only the Owner and the Manager can download it
 
 In sprint 4, the sticker follows the number of vehicles. In the baseline it stays 500 rupees times rooms.
+
+## 11. Meadow office, T-37
+
+The prototype is the reference for the look. It is not code to copy. It is plain HTML and JavaScript built from `docs/office-design/src/`. The live office is Next.js, React, and Tailwind 4. Rebuild each screen as React, and read the data from the API routes that already exist. The prototype data in `build.mjs` is sample data. Do not load it into the database.
+
+Run `node docs/office-design/src/build.mjs` and open `docs/office-design/meadow.html` to compare a screen. The preview copy is `https://new.travelwithmoeen.com/meadow`.
+
+### Look
+
+- Tokens. Copy the custom properties in `base.css` and `meadow.css` into one office stylesheet, such as `components/office/meadow.css`. Scope every rule under one office root class on the office layout, so no token or class reaches a public page. Do not add them to the Tailwind `@theme`, because that is global.
+- Classes. Port the prototype classes the screens use, such as `card`, `btn`, `field`, `tbl`, `badge`, `alert`, `stat`, `seg-status`, and `drawer`, into the same scoped stylesheet. Wrap them in small components under `components/office/ui/`. A screen uses those components, not new one-off styles.
+- Icons. The prototype draws each icon from one path list, `IC` in `core.js`. Port it as one `Icon` component with the same paths.
+- High contrast. The prototype has a `data-theme="hc"` mode. It is not part of T-37.
+- Phone. The prototype sidebar becomes a menu on a phone. Keep that, and keep the quote form full width on a phone.
+
+### Shell and roles
+
+`OfficeShell` becomes the prototype shell: sidebar, top bar, and phone menu. The sidebar uses the groups in the prototype `NAV`: Overview, Sales, Content, and Admin. Each link shows only when the session allows it:
+
+| Link | Shown when |
+|---|---|
+| Dashboard, Requests | Any signed-in role |
+| Rates and quotes | `canEditRates` |
+| Tours, Places, Blog, Gallery, Reviews, Home slides, Site details | `canEditContent` |
+| Users | `canManageUsers` |
+| Backups | `canRunBackup` |
+
+Trip plans is not a live link. The role switch bar at the top of the prototype is not on the live office. The role comes from the session, as in section 7. Hiding a link does not replace the server check.
+
+### Screens
+
+| Prototype | Live route | Reads and writes | Note |
+|---|---|---|---|
+| `#/login` | `/office/login` | `POST /api/office/login` | Same login rules. Only the look changes. |
+| `#/dashboard` | `/office` | `GET /api/office/requests`, `GET /api/office/rates`, `GET /api/office/backup`, `GET /api/office/activity` | New requests, the active margin, the last backup, and recent activity, each only for a role that may read it. The activity feed comes in T-37k. The costing-file note stays a placeholder. |
+| `#/requests` | `/office/requests` | `GET /api/office/requests`, `POST .../status`, `POST .../delete` | List, filters, and detail. |
+| `#/rates/*` | `/office/rates` | `GET` and `POST /api/office/rates` | Hotels, vehicles, jeep lines, air extras, and the margin. Tabs may become sub-routes. |
+| `#/rates/quote` | `/office/rates`, quote tab | `POST /api/quote` | Night and day edits stay. Hotel choices come in T-37h. |
+| `#/tours`, `#/places`, `#/blog`, `#/gallery`, `#/reviews`, `#/slides`, `#/site` | The same `/office/...` routes | The office content routes that already exist | Keep every upload and remove control, and the tour and place links. |
+| `#/users` | `/office/users` | `/api/office/users/*` | Owner only. |
+| `#/backups` | `/office/backup` | `/api/office/backup` and `/backup/file` | Owner only. |
+| `#/plans`, `#/system` | None | None | Prototype only. |
+
+A screen that needs data no route returns asks for the route in its pull request, and adds it to requirements section 13 in the same change. The only new route in T-37 is `GET /api/office/activity`, in T-37k.
+
+### Activity record, T-37k
+
+One new table, `activity`:
+
+| Column | Holds |
+|---|---|
+| `id` | Serial key. |
+| `at` | Time of the save, with time zone. |
+| `user_id` | The login that saved. No foreign key, so removing a login does not remove its old rows. |
+| `user_email` | The email at the time of the save. |
+| `area` | One of `content`, `rates`, `requests`, `users`, `backups`. It decides who may read the row. |
+| `kind` | The record type, such as `tour`, `place`, `post`, `photo`, `review`, `slide`, `site`, `hotel_rate`, `vehicle_rate`, `jeep_line`, `air_extra`, `margin`, `request`, `user`, `backup`. |
+| `record_id` | The record key, such as the tour id or the place slug. Empty for a single record such as the margin. |
+| `text` | One short line for people, such as "Saved tour 5 Days Trip to Skardu" or "Changed the profit margin to 22 percent". |
+
+- Write the row inside the same `lib/` function that saves, after the save succeeds, in the same database transaction where the save already uses one. Add one helper, such as `recordActivity` in `lib/office/activity.ts`. Do not write rows from a route or a screen.
+- The text names the record. It never holds a password, a token, a secret, or a guest phone or message. A request row says "Moved request 12 to In progress", not the guest name.
+- Who reads what: Owner reads every area. Manager reads `rates` and `requests`. Editor reads `content` and `requests`. `users` and `backups` are Owner only. The filter runs in `lib/`, using the role checks in `lib/auth/permissions.ts`. The route calls a `lib/` function and does not import `lib/auth/permissions` itself, which the standards check refuses.
+- "Saved by" on a screen is the newest row for that `kind` and `record_id`. No column is added to the content tables.
+- Rows older than 365 days are deleted by `recordActivity` when it writes a new row. The backup run does not delete data.
+- Add `activity` to the end of `BACKUP_TABLES` in `lib/office/backup.ts`, so a backup and a restore keep it.
+
+### Profit margin, T-37f
+
+The `seasons` table keeps one row. Its `percent` becomes any whole percent from 0 to 100. The `quotes.season_percent` column keeps its name, so old quotes still read. In code, the name becomes margin. The `SeasonPercent` type of 15 or 20 in `lib/quote.ts` and `lib/rates.ts` becomes a number checked from 0 to 100. The save stays on `POST /api/office/rates`, with the Owner and Manager check in `lib/`. The guest quote uses the saved margin. The starting value is 20 percent.
+
+### Hotel choices, T-37h
+
+Built after rows S-3 to S-8 in the tasks file are Approved or Changed. The rules are section 5, "Hotel package, pending Moeen sign-off". Add one input to the quote function, the hotel choice: with, none, or only. Keep the default in one constant in `lib/quote.ts`, so a change from Moeen is one line plus its check. Same hotel all nights is the starting quote in BR-45. Change per night opens the night lines in BR-46, with a grade or a typed rate on each night, which is BR-84. The hotel catalog is not built. That is T-39.
+
+### When Moeen changes something
+
+1. Update the row in the sign-off table in `docs/specs/tasks.md`.
+2. Change the requirement and this design in the same pull request.
+3. If the change is to the look, update the prototype source and rebuild `meadow.html` in that pull request too, so the reference stays true.
+4. Then change the code. A task that is already merged gets a small follow-up pull request that names the S row.
