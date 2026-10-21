@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { SignOutButton } from "@/components/office/SignOutButton";
 import {
+  ROLE_NAME,
   SIDEBAR_COOKIE,
   isCurrentOfficeLink,
   type OfficeNavGroup,
@@ -14,7 +15,6 @@ import { Button } from "@/components/office/ui/Button";
 import { Icon } from "@/components/office/ui/Icon";
 import type { Role } from "@/lib/http/result";
 
-const ROLE_NAME: Record<Role, string> = { owner: "Owner", manager: "Manager", editor: "Editor" };
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
 
 type OpenMenu = "new" | "account" | null;

@@ -293,6 +293,92 @@
   .office .drawer-body > * { margin-block: 0; min-width: 0; }
   .office .drawer .card { box-shadow: none; }
 
+  /* ---------- Page head, empty state, small helpers ---------- */
+  .office .nowrap { white-space: nowrap; }
+  .office .page-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-3) var(--space-5); }
+  .office .page-head h1 { font: var(--h1); letter-spacing: var(--h1-ls); display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; outline: none; }
+  .office .page-head .desc { color: var(--text-2); margin-top: var(--space-1); overflow-wrap: anywhere; }
+  .office .ph-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+  .office .empty { display: grid; justify-items: center; text-align: center; gap: var(--space-2); padding: var(--space-10) var(--space-5); }
+  .office .empty-ic { width: var(--space-12); height: var(--space-12); border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); color: var(--text-2); }
+  .office .empty h3 { font: 600 var(--text-md)/var(--leading-body) var(--font); }
+  .office .empty p { color: var(--text-2); max-width: 44ch; }
+  .office .btn-danger-outline { background: var(--surface); color: var(--danger-text); border-color: var(--danger); }
+  .office .btn-danger-outline:hover { background: var(--danger-soft); }
+
+  /* ---------- Selects ---------- */
+  .office .select { width: 100%; min-height: var(--size-md); padding: 0 var(--space-8) 0 var(--space-3); border: var(--border-w) solid var(--border-strong); border-radius: var(--r-s); background-color: var(--field-bg); color: var(--text); font: 400 var(--text-sm)/var(--leading-body) var(--font); appearance: none; cursor: pointer; background-image: linear-gradient(45deg, transparent 50%, var(--text-2) 50%), linear-gradient(135deg, var(--text-2) 50%, transparent 50%); background-position: calc(100% - var(--space-4)) 52%, calc(100% - var(--space-3)) 52%; background-size: var(--space-1) var(--space-1); background-repeat: no-repeat; }
+  .office .select:hover { border-color: var(--text-2); }
+  .office .select:focus-visible { outline: var(--focus-w) solid var(--focus); outline-offset: var(--focus-offset-field); }
+  .office .select-sm { min-height: var(--size-sm); }
+
+  /* ---------- Toolbar and filter tabs ---------- */
+  .office .toolbar { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+  .office .search-box { position: relative; flex: 1 1 calc(var(--space-20) * 3 + var(--space-5)); max-width: calc(var(--space-24) * 3 + var(--space-20) + var(--space-3)); }
+  .office .search-box .ic { position: absolute; left: var(--space-3); top: 50%; transform: translateY(-50%); color: var(--text-3); pointer-events: none; }
+  .office .search-box .input { padding-left: var(--space-10); }
+  .office .toolbar .select { width: auto; flex: none; }
+  .office .filter-count { font-size: var(--text-sm); color: var(--text-2); margin-left: auto; }
+  .office .tabs { display: flex; flex-wrap: wrap; gap: var(--space-half); width: 100%; padding: var(--space-1); border: var(--border-w) solid var(--border); border-radius: var(--r-m); background: var(--surface-2); }
+  .office .tab { display: inline-flex; gap: var(--space-2); align-items: center; padding: var(--space-2) var(--space-3); border: 0; border-radius: var(--r-s); background: none; color: var(--text-2); font: 500 var(--text-sm)/var(--leading-body) var(--font); white-space: nowrap; text-decoration: none; cursor: pointer; }
+  .office .tab:hover { color: var(--text); background: var(--surface-hover); }
+  .office .tab[aria-pressed="true"] { color: var(--text); background: var(--surface); box-shadow: var(--shadow-1); }
+  .office .tab-n { font-size: var(--text-xs); color: var(--text-3); font-variant-numeric: tabular-nums; }
+
+  /* ---------- Row lists ---------- */
+  .office .rowlist { list-style: none; margin: 0; padding: 0; background: var(--surface); border: var(--border-w) solid var(--card-line); border-radius: var(--r-m); box-shadow: var(--shadow-1); overflow: hidden; }
+  .office .rowlist li + li { border-top: var(--border-w) solid var(--border); }
+  .office .row { display: flex; align-items: center; gap: var(--space-4); width: 100%; padding: var(--space-3) var(--space-4); min-height: var(--size-lg); color: var(--text); text-decoration: none; background: none; border: 0; font: inherit; text-align: left; cursor: pointer; }
+  .office .row:hover { background: var(--surface-hover); }
+  .office .row[aria-current="true"] { background: var(--selected); box-shadow: inset var(--border-w-xl) 0 0 var(--primary); }
+  .office .row:focus-visible { outline-offset: var(--focus-offset-inset); }
+  .office .row-main { flex: 1; min-width: 0; display: grid; }
+  .office .row-main b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .office .row-main small { color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .office .row-meta { display: flex; gap: var(--space-2); align-items: center; flex: none; }
+  .office .row-meta small { color: var(--text-3); }
+  .office .unread { display: inline-block; width: var(--space-2); height: var(--space-2); border-radius: 50%; background: var(--primary); vertical-align: middle; margin-left: var(--space-1); }
+
+  /* ---------- Dashboard ---------- */
+  .office .dash-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: var(--stack); align-items: start; }
+  .office .mini-list { list-style: none; margin: 0; padding: var(--space-2) 0; }
+  .office .mini-list a { display: flex; gap: var(--space-3); align-items: center; justify-content: space-between; padding: var(--space-3) var(--pad); color: var(--text); text-decoration: none; }
+  .office .mini-list a:hover { background: var(--surface-hover); }
+  .office .mini-list a:focus-visible { outline-offset: var(--focus-offset-inset); }
+  .office .mini-main { flex: 1; display: grid; min-width: 0; }
+  .office .mini-main small { color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .office .mini-meta { display: flex; gap: var(--space-2); align-items: center; flex: none; }
+  .office .mini-meta small { color: var(--text-3); }
+  .office .todo { list-style: none; margin: 0; padding: var(--space-2) var(--space-3) var(--space-4); display: grid; gap: var(--space-1); }
+  .office .todo li { display: flex; gap: var(--space-3); align-items: center; padding: var(--space-2) var(--space-3); border-radius: var(--r-m); }
+  .office .todo li:hover { background: var(--surface-hover); }
+  .office .todo-ic { width: var(--space-8); height: var(--space-8); border-radius: var(--r-s); display: grid; place-items: center; flex: none; background: var(--info-soft); color: var(--info-text); }
+  .office .todo-warning .todo-ic { background: var(--warning-soft); color: var(--warning-text); }
+  .office .todo-success .todo-ic { background: var(--success-soft); color: var(--success-text); }
+  .office .todo-t { flex: 1; min-width: 0; }
+
+  /* ---------- Requests inbox ---------- */
+  .office .inbox { display: grid; grid-template-columns: minmax(0, calc(var(--space-24) * 3 + var(--space-20) + var(--space-3))) minmax(0, 1fr); gap: var(--stack); align-items: start; }
+  .office .inbox-list-wrap { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+  .office .inbox-list { max-height: 68vh; overflow: auto; }
+  .office .inbox-detail { position: sticky; top: calc(var(--topbar-h) + var(--space-4)); padding: var(--pad); }
+  .office .req-detail { display: grid; gap: var(--stack); }
+  .office .req-detail > * { margin-block: 0; min-width: 0; }
+  .office .req-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-3); align-items: flex-start; }
+  .office .req-head h2 { font: 600 var(--text-lg)/var(--leading-body) var(--font); outline: none; overflow-wrap: anywhere; }
+  .office .req-head .desc { color: var(--text-2); }
+  .office .req-nav { display: flex; align-items: center; gap: var(--space-half); }
+  .office .req-pos { font-size: var(--text-xs); color: var(--text-2); padding: 0 var(--space-2); font-variant-numeric: tabular-nums; }
+  .office .contact-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+  .office .contact-actions:empty { display: none; }
+  .office .dl { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-2) var(--space-4); margin: 0; }
+  .office .dl dt { color: var(--text-2); }
+  .office .dl dd { margin: 0; overflow-wrap: anywhere; }
+  .office .message { padding: var(--space-4); border-radius: var(--r-s); background: var(--surface-2); white-space: pre-wrap; overflow-wrap: anywhere; line-height: var(--leading-loose); font-size: var(--text-sm); }
+  .office .message-k { display: block; font-size: var(--text-xs); font-weight: 600; color: var(--text-2); margin-bottom: var(--space-2); white-space: normal; }
+  .office .status-row { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-3); padding-top: var(--space-4); border-top: var(--border-w) solid var(--border); }
+  .office .confirm-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+
   /* ---------- Wide screens ---------- */
   @media (max-width: 1100px) {
     .office .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -308,11 +394,22 @@
     .office .nav-open .side-scrim { display: block; position: fixed; inset: 0; background: var(--overlay); z-index: var(--z-overlay); }
     .office .topbar { padding: 0 var(--space-3); }
     .office .main { padding: var(--space-5) var(--space-4) var(--space-24); }
+    .office .dash-grid { grid-template-columns: 1fr; }
+    .office .inbox { grid-template-columns: 1fr; }
+    .office .inbox.has-detail .inbox-list-wrap { display: none; }
+    .office .inbox:not(.has-detail) .inbox-detail { display: none; }
+    .office .inbox-detail { position: static; }
+    .office .inbox-list { max-height: none; }
   }
 
   /* ---------- Phone ---------- */
   @media (max-width: 720px) {
-    .office .input { font-size: var(--text-md); }
+    .office .input, .office .select { font-size: var(--text-md); }
+    .office .toolbar { width: 100%; }
+    .office .search-box { max-width: 100%; flex-basis: 100%; }
+    .office .filter-count { margin-left: 0; }
+    .office .page-head .ph-actions { width: 100%; }
+    .office .mini-list a { padding: var(--space-3) var(--space-4); }
     .office .login { padding: var(--space-4) var(--space-3); }
     .office .login-card .card-body { padding: var(--space-5) var(--space-4); }
     .office .pop, .office .pop-right, .office .pop-up { max-width: calc(100vw - var(--space-6)); }
