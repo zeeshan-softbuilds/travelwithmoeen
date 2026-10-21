@@ -6,8 +6,21 @@ export default async function OfficeLoginPage() {
   const user = await getOfficeSession();
   if (user) redirect("/office");
   return (
-    <div className="min-h-screen bg-slate-100">
-      <LoginForm />
-    </div>
+    <>
+      <a className="skip" href="#main">
+        Skip to content
+      </a>
+      <main id="main" className="login" tabIndex={-1}>
+        <div className="login-box">
+          <div className="login-brand">
+            <span className="logo" aria-hidden="true">
+              TM
+            </span>
+            <b>Travel With Moeen Office</b>
+          </div>
+          <LoginForm />
+        </div>
+      </main>
+    </>
   );
 }

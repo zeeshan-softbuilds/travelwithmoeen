@@ -1,46 +1,49 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
+import { Alert } from "@/components/office/ui/Alert";
+import { Button } from "@/components/office/ui/Button";
+import { Field } from "@/components/office/ui/Field";
 import { officeFormAction } from "@/lib/http/office-client";
 import type { ActionResult } from "@/lib/http/result";
 
 export function LoginForm() {
   const [state, action, pending] = useActionState(officeFormAction("/api/office/login", "/office"), null as ActionResult | null);
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
-    <form action={action} className="mx-auto mt-24 max-w-md rounded-xl bg-white p-8 shadow">
-      <h1 className="text-2xl font-semibold text-slate-900">Office sign in</h1>
-      <p className="mt-2 text-sm text-slate-600">Use the email and password for your login.</p>
-      <label className="mt-6 block text-sm font-medium text-slate-700" htmlFor="email">
-        Email
-      </label>
-      <input
-        className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"
-        id="email"
-        name="email"
-        type="email"
-        autoComplete="username"
-        required
-      />
-      <label className="mt-4 block text-sm font-medium text-slate-700" htmlFor="password">
-        Password
-      </label>
-      <input
-        className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"
-        id="password"
-        name="password"
-        type="password"
-        autoComplete="current-password"
-        required
-      />
-      {state && !state.ok ? <p className="mt-4 text-sm text-red-700">{state.error}</p> : null}
-      <button
-        className="mt-6 w-full rounded-md bg-slate-900 px-4 py-2 text-white disabled:opacity-60"
-        type="submit"
-        disabled={pending}
-      >
-        {pending ? "Signing in..." : "Sign in"}
-      </button>
+    <form action={action} className="card login-card">
+      <div className="card-body">
+        <div>
+          <h1>Sign in</h1>
+          <p className="desc">
+            Use the email and password for your office login. Your login is created by the Owner under Users.
+          </p>
+        </div>
+        {state && !state.ok ? <Alert tone="danger" title={state.error} role="alert" /> : null}
+        <Field id="email" label="Email">
+          <input className="input" id="email" name="email" type="email" autoComplete="username" required />
+        </Field>
+        <Field id="password" label="Password">
+          <div className="pw">
+            <input
+              className="input"
+              id="password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              required
+            />
+            <Button variant="ghost" size="sm" icon="eye" aria-pressed={showPassword} onClick={() => setShowPassword(!showPassword)}>
+              <span>{showPassword ? "Hide" : "Show"}</span>
+            </Button>
+          </div>
+        </Field>
+        <Button variant="primary" size="lg" block type="submit" disabled={pending} busy={pending}>
+          Sign in
+        </Button>
+        <p className="help center">Forgot your password? Ask the Owner to remove your login and create it again.</p>
+      </div>
     </form>
   );
 }
