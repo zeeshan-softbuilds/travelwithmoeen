@@ -17,7 +17,7 @@ export function LoginForm() {
         <div>
           <h1>Sign in</h1>
           <p className="desc">
-            Use the email and password for your office login. A Manager uses the login the Owner created under Users.
+            Use the email and password for your office login. Your login is created by the Owner under Users.
           </p>
         </div>
         {state && !state.ok ? <Alert tone="danger" title={state.error} role="alert" /> : null}
@@ -42,7 +42,7 @@ export function LoginForm() {
         <Button variant="primary" size="lg" block type="submit" disabled={pending} busy={pending}>
           Sign in
         </Button>
-        <p className="help center">Forgot your password? Ask the Owner to set a new one.</p>
+        <p className="help center">Forgot your password? Ask the Owner to remove your login and create it again.</p>
       </div>
     </form>
   );
