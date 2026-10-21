@@ -12,6 +12,7 @@ export type OfficeSession = {
   canUpdateRequestStatus: boolean;
   canDeleteRequest: boolean;
   canRunBackup: boolean;
+  newRequestCount: number;
 };
 
 export type OfficeUserRow = {
@@ -54,6 +55,7 @@ export async function getOfficeSession(): Promise<OfficeSession | null> {
     canUpdateRequestStatus: Boolean(body.canUpdateRequestStatus),
     canDeleteRequest: Boolean(body.canDeleteRequest),
     canRunBackup: Boolean(body.canRunBackup),
+    newRequestCount: Number(body.newRequestCount) || 0,
   };
 }
 

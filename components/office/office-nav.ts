@@ -1,5 +1,8 @@
 import type { IconName } from "@/components/office/ui/Icon";
 import type { OfficeSession } from "@/lib/http/office-session";
+import type { Role } from "@/lib/http/result";
+
+export const ROLE_NAME: Record<Role, string> = { owner: "Owner", manager: "Manager", editor: "Editor" };
 
 // Remembers the collapsed sidebar for this browser. Read on the server so the first paint is right.
 export const SIDEBAR_COOKIE = "twm_office_sidebar";

@@ -275,7 +275,7 @@ This list is the whole project. A new office route is added to this list in the 
 | `POST /api/requests` | Anyone. No session. Saves a contact, a custom trip, or a booking. The response does not include the name, phone, email, or message. |
 | `GET /api/content/tours`, `/tours/[id]`, `/places`, `/places/[slug]`, `/posts`, `/posts/[slug]`, `/photos`, `/reviews`, `/slides`, `/site` | Anyone. No session. Read only. The same data the public pages show. |
 | `POST /api/office/login` | Anyone. The failure rules in BR-67 and BR-68 apply. |
-| `POST /api/office/logout` and `GET /api/office/session` | A signed-in Owner, Manager, or Editor. |
+| `POST /api/office/logout` and `GET /api/office/session` | A signed-in Owner, Manager, or Editor. The session reply also carries the number of new guest requests for the sidebar, which every signed-in role may read. |
 | Tour, place, post, photo, review, slide, and site-detail writes | Owner or Editor. |
 | `POST /api/office/tours/create` | Owner or Editor. Adds a tour. It does not set a rupee amount. |
 | Rates, profit margin, vehicles, jeep lines, paid extras, and the live price Excel download | Owner or Manager. |

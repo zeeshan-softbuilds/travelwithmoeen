@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { guestRequests } from "@/lib/db/schema";
 import { canDeleteRequest, canUpdateRequestStatus } from "@/lib/auth/permissions";
@@ -46,6 +46,13 @@ export async function listRequestsAs(actor: SessionUser) {
     createdAt: row.createdAt.toISOString(),
   }));
   return { ok: true as const, requests };
+}
+
+// The sidebar count. Every role that may read the list may read the count.
+export async function countNewRequestsAs(actor: SessionUser) {
+  if (actor.role !== "owner" && actor.role !== "manager" && actor.role !== "editor") return 0;
+  const [row] = await db.select({ total: count() }).from(guestRequests).where(eq(guestRequests.status, "new"));
+  return row?.total ?? 0;
 }
 
 export async function updateRequestStatusAs(actor: SessionUser, id: number, status: string): Promise<ActionResult> {
