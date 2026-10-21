@@ -9,7 +9,8 @@ import { Icon } from "@/components/office/ui/Icon";
 import { SegmentedControl } from "@/components/office/ui/SegmentedControl";
 import type { OfficeRequestRow } from "@/lib/http/office-session";
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// No ?, &, or # in the address, so a mailto: link cannot carry extra fields such as cc.
+const EMAIL_PATTERN = /^[^\s@?&#]+@[^\s@?&#]+\.[^\s@?&#]+$/;
 
 type RequestDetailProps = {
   row: OfficeRequestRow;

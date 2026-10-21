@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "fs";
 import path from "path";
 import { spawn } from "child_process";
-import { eq, max } from "drizzle-orm";
+import { count, eq, max } from "drizzle-orm";
 import { db, sql } from "../lib/db";
 import { guestRequests, loginFailures, places, posts, reviews, tourPlaces, tours, users } from "../lib/db/schema";
 import { inferTourPlaceLinks, linkInferredTourPlaces } from "../lib/office/tour-places";
@@ -844,6 +844,7 @@ async function assertOfficeRequests(savedIds: number[]) {
     await assertOfficeMedia(editorCookie, managerCookie, ownerCookie);
     await assertTourPlaceOffice(editorCookie, managerCookie, ownerCookie);
     await assertOfficeShellLinks(editorCookie, managerCookie, ownerCookie);
+    await assertSessionRequestCount(ownerCookie);
     const ownerDelete = await officePost("/api/office/requests/delete", deleteForm, ownerCookie);
     if (ownerDelete.status !== 200 || !ownerDelete.body.ok) {
       throw new Error(`An Owner delete returned ${ownerDelete.status}.`);
@@ -896,6 +897,22 @@ function sidebarLinks(html: string) {
     if (href) links.push(href);
   }
   return links;
+}
+
+// T-37b: the session reply carries the sidebar count of new requests, and only with a session.
+async function assertSessionRequestCount(ownerCookie: string) {
+  const [row] = await db.select({ total: count() }).from(guestRequests).where(eq(guestRequests.status, "new"));
+  const expected = row?.total ?? 0;
+  const signedIn = await fetch(`${siteBase()}/api/office/session`, { headers: { cookie: ownerCookie } });
+  const body = (await signedIn.json()) as { ok?: boolean; newRequestCount?: unknown };
+  if (signedIn.status !== 200 || !body.ok || body.newRequestCount !== expected) {
+    throw new Error(`The session reply has newRequestCount ${String(body.newRequestCount)}, not ${expected}.`);
+  }
+  const signedOut = await fetch(`${siteBase()}/api/office/session`);
+  const outText = await signedOut.text();
+  if (signedOut.status !== 401 || outText.includes("newRequestCount")) {
+    throw new Error(`Without a session the session reply returned ${signedOut.status} or a request count.`);
+  }
 }
 
 // T-37a: the Meadow shell shows each role only the links it may use.
