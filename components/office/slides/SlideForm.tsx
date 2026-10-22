@@ -39,7 +39,7 @@ export function SlideForm({ slide, position, frame }: { slide: HomeSlide | null;
   return (
     <EditorDrawer
       title={slide ? slide.title : "Add a slide"}
-      description={slide ? `Position ${position} on the home page` : "It joins the row at the position you choose."}
+      description={slide ? `Position ${position} on the home page` : "It joins the end of the row unless you give it a lower order."}
       closeHref={frame.closeHref}
       previousHref={frame.previousHref}
       nextHref={frame.nextHref}
@@ -60,8 +60,8 @@ export function SlideForm({ slide, position, frame }: { slide: HomeSlide | null;
             <Field id="slide-rotation" label="Tilt in degrees" help="0 is straight. A minus number tilts left.">
               <input className="input" id="slide-rotation" name="rotation" type="number" value={rotation} onChange={(event) => setRotation(event.target.value)} aria-describedby="slide-rotation-help" />
             </Field>
-            <Field id="slide-order" label="Position" help="1 is the first card on the left.">
-              <input className="input" id="slide-order" name="sortOrder" type="number" min={1} defaultValue={position} aria-describedby="slide-order-help" />
+            <Field id="slide-order" label="Order" help="Lower numbers show first. Give each slide its own number, because two slides with the same number can swap.">
+              <input className="input" id="slide-order" name="sortOrder" type="number" defaultValue={position} aria-describedby="slide-order-help" />
             </Field>
           </div>
           <FileField label={slide ? "Replace photo" : "Photo"} pathName="image" fileName="photo" value={image} onChange={setImage} onFile={setChosenPreview} />
