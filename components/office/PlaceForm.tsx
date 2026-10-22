@@ -1,132 +1,130 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
+import { EditorDrawer } from "@/components/office/content/EditorDrawer";
+import type { EditorFrame } from "@/components/office/content/frame";
+import { photoStyle, rememberSaved } from "@/components/office/content/media";
+import { FileField } from "@/components/office/content/PhotoField";
+import { SaveBar } from "@/components/office/content/SaveBar";
+import { SectionsEditor } from "@/components/office/content/SectionsEditor";
+import { Card } from "@/components/office/ui/Card";
+import { Field } from "@/components/office/ui/Field";
+import { Icon } from "@/components/office/ui/Icon";
 import { postOfficeForm } from "@/lib/http/office-client";
 import type { ActionResult } from "@/lib/http/result";
-import type { Destination, DestinationSection } from "@/data/destinations";
+import type { Destination } from "@/data/destinations";
 
-const inputClass = "mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm";
+const SECTIONS = [
+  { id: "place-basics", label: "Basics" },
+  { id: "place-tours", label: "Tours" },
+  { id: "place-banner", label: "Banner" },
+  { id: "place-sections", label: "Sections" },
+];
 
-type DraftSection = {
-  heading: string;
-  body: string;
-  image: string;
-  highlights: string;
-};
-
-function toDraft(section: DestinationSection): DraftSection {
-  return {
-    heading: section.heading ?? "",
-    body: section.body,
-    image: section.image ?? "",
-    highlights: (section.highlight ?? []).join("\n"),
-  };
-}
-
-export function PlaceForm({ place }: { place: Destination }) {
-  const [sections, setSections] = useState(place.content.map(toDraft));
+export function PlaceForm({ place, frame }: { place: Destination; frame: EditorFrame }) {
+  const [title, setTitle] = useState(place.title);
+  const [excerpt, setExcerpt] = useState(place.excerpt);
+  const [location, setLocation] = useState(place.location ?? "");
+  const [banner, setBanner] = useState(place.bannerImage);
+  const [bannerPreview, setBannerPreview] = useState("");
   const [state, action, pending] = useActionState(async (previous: ActionResult | null, formData: FormData) => {
     const result = await postOfficeForm("/api/office/places", formData);
-    if (result.ok) window.location.reload();
+    if (result.ok) {
+      rememberSaved(result.message ?? "Place saved.");
+      window.location.reload();
+    }
     return result;
   }, null as ActionResult | null);
-  const content = sections.map((section) => ({
-    heading: section.heading,
-    body: section.body,
-    image: section.image,
-    highlight: section.highlights
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean),
-  }));
+  const linked = place.tours ?? [];
+
+  const preview = (
+    <div className="pv-card">
+      <span className="pv-img tall" style={photoStyle(bannerPreview || banner)}>
+        <b className="pv-over">{title || "Place title"}</b>
+      </span>
+      <div className="pv-body">
+        <small>
+          <Icon name="pin" />
+          {location || "Location"}
+        </small>
+        <p>{excerpt}</p>
+      </div>
+    </div>
+  );
 
   return (
-    <form action={action} className="space-y-4 rounded-xl bg-white p-6 shadow">
-      <input type="hidden" name="slug" value={place.slug} />
-      <input type="hidden" name="content" value={JSON.stringify(content)} />
-      <label className="block text-sm font-medium">
-        Title
-        <input className={inputClass} name="title" defaultValue={place.title} required />
-      </label>
-      <label className="block text-sm font-medium">
-        Short text
-        <textarea className={inputClass} name="excerpt" rows={4} defaultValue={place.excerpt} />
-      </label>
-      <label className="block text-sm font-medium">
-        Location
-        <input className={inputClass} name="location" defaultValue={place.location ?? ""} />
-      </label>
-      <label className="block text-sm font-medium">
-        Banner photo
-        <input className={inputClass} name="bannerImage" defaultValue={place.bannerImage} />
-      </label>
-      <label className="block text-sm font-medium">
-        Upload banner
-        <input className={inputClass} name="bannerPhoto" type="file" accept="image/jpeg,image/png,image/webp" />
-      </label>
-      {sections.map((section, index) => (
-        <div key={index} className="space-y-2 rounded-md border p-4">
-          <p className="text-sm font-medium">Section {index + 1}</p>
-          <input
-            className={inputClass}
-            value={section.heading}
-            placeholder="Heading"
-            onChange={(event) =>
-              setSections((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, heading: event.target.value } : item)))
-            }
-          />
-          <textarea
-            className={inputClass}
-            rows={4}
-            value={section.body}
-            placeholder="Text"
-            onChange={(event) =>
-              setSections((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, body: event.target.value } : item)))
-            }
-          />
-          <input
-            className={inputClass}
-            value={section.image}
-            placeholder="Photo path"
-            onChange={(event) =>
-              setSections((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, image: event.target.value } : item)))
-            }
-          />
-          <label className="block text-sm">
-            Upload section photo
-            <input className={inputClass} name={`sectionPhoto_${index}`} type="file" accept="image/jpeg,image/png,image/webp" />
-          </label>
-          <textarea
-            className={inputClass}
-            rows={3}
-            value={section.highlights}
-            placeholder="Highlights, one per line"
-            onChange={(event) =>
-              setSections((current) =>
-                current.map((item, itemIndex) => (itemIndex === index ? { ...item, highlights: event.target.value } : item)),
-              )
-            }
-          />
-          <button
-            className="text-sm text-red-700"
-            type="button"
-            onClick={() => setSections((current) => current.filter((item, itemIndex) => itemIndex !== index))}
-          >
-            Remove section
-          </button>
-        </div>
-      ))}
-      <button
-        className="text-sm underline"
-        type="button"
-        onClick={() => setSections((current) => [...current, { heading: "", body: "", image: "", highlights: "" }])}
-      >
-        Add section
-      </button>
-      {state ? <p className={state.ok ? "text-sm text-green-700" : "text-sm text-red-700"}>{state.ok ? state.message : state.error}</p> : null}
-      <button className="block rounded-md bg-slate-900 px-4 py-2 text-white" type="submit" disabled={pending}>
-        {pending ? "Saving..." : "Save place"}
-      </button>
-    </form>
+    <EditorDrawer
+      title={place.title}
+      description={place.location}
+      closeHref={frame.closeHref}
+      previousHref={frame.previousHref}
+      nextHref={frame.nextHref}
+      position={frame.position}
+      viewHref={`/destinations/${encodeURIComponent(place.slug)}`}
+      sections={SECTIONS}
+      preview={preview}
+    >
+      <form action={action} className="stack">
+        <input type="hidden" name="slug" value={place.slug} />
+        <Card id="place-basics" title="Basics">
+          <div className="form-grid">
+            <div className="field full">
+              <label className="label" htmlFor="place-title">
+                Title
+              </label>
+              <input className="input" id="place-title" name="title" value={title} onChange={(event) => setTitle(event.target.value)} required />
+            </div>
+            <div className="field full">
+              <label className="label" htmlFor="place-excerpt">
+                Short text
+              </label>
+              <textarea className="textarea" id="place-excerpt" name="excerpt" rows={4} value={excerpt} onChange={(event) => setExcerpt(event.target.value)} aria-describedby="place-excerpt-help" />
+              <p className="help" id="place-excerpt-help">
+                Shown on the place card.
+              </p>
+            </div>
+            <Field id="place-location" label="Location">
+              <input className="input" id="place-location" name="location" value={location} onChange={(event) => setLocation(event.target.value)} />
+            </Field>
+          </div>
+        </Card>
+
+        <Card
+          id="place-tours"
+          title="Tours at this place"
+          description="These tours point here, and their pages show this title. To change the list, choose this place on a tour. If a tour uses only this place and its location line is this title, a new title updates that line."
+        >
+          {linked.length > 0 ? (
+            <ul className="link-list" aria-label="Open a linked tour">
+              {linked.map((tour) => (
+                <li key={tour.id}>
+                  <Link className="btn btn-secondary btn-sm" href={`/office/tours/${encodeURIComponent(tour.id)}`}>
+                    <Icon name="map" />
+                    {tour.name}
+                    <span className="muted">
+                      {" "}
+                      · {tour.duration} {tour.duration === 1 ? "day" : "days"} · {tour.transport}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="help">No tour points here yet. Choose this place on a tour.</p>
+          )}
+        </Card>
+
+        <Card id="place-banner" title="Banner photo" description="The wide photo at the top of the place page.">
+          <FileField label="Banner" pathName="bannerImage" fileName="bannerPhoto" value={banner} onChange={setBanner} onFile={setBannerPreview} />
+        </Card>
+
+        <Card id="place-sections" title="Sections" description="The page body, top to bottom.">
+          <SectionsEditor sections={place.content} />
+        </Card>
+
+        <SaveBar label="Save place" pending={pending} result={state} />
+      </form>
+    </EditorDrawer>
   );
 }
