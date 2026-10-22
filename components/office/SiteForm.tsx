@@ -1,57 +1,57 @@
 "use client";
 
 import { useActionState } from "react";
+import { SaveBar } from "@/components/office/content/SaveBar";
+import { Card } from "@/components/office/ui/Card";
+import { Field } from "@/components/office/ui/Field";
 import { officeFormAction } from "@/lib/http/office-client";
 import type { SiteSettings } from "@/lib/content-types";
 import type { ActionResult } from "@/lib/http/result";
 
-const inputClass = "mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm";
+const SOCIAL: { name: keyof SiteSettings; label: string }[] = [
+  { name: "facebookUrl", label: "Facebook" },
+  { name: "instagramUrl", label: "Instagram" },
+  { name: "tiktokUrl", label: "TikTok" },
+  { name: "youtubeUrl", label: "YouTube" },
+];
 
 export function SiteForm({ settings }: { settings: SiteSettings }) {
   const [state, action, pending] = useActionState(officeFormAction("/api/office/site"), null as ActionResult | null);
 
   return (
-    <form action={action} className="space-y-4 rounded-xl bg-white p-6 shadow">
-      <label className="block text-sm font-medium">
-        Phone
-        <input className={inputClass} name="phoneDisplay" defaultValue={settings.phoneDisplay} required />
-      </label>
-      <label className="block text-sm font-medium">
-        WhatsApp number
-        <input className={inputClass} name="phoneE164" defaultValue={settings.phoneE164} required />
-      </label>
-      <label className="block text-sm font-medium">
-        Email
-        <input className={inputClass} name="email" type="email" defaultValue={settings.email} required />
-      </label>
-      <label className="block text-sm font-medium">
-        Address
-        <textarea className={inputClass} name="address" rows={2} defaultValue={settings.address} required />
-      </label>
-      <label className="block text-sm font-medium">
-        Map link
-        <input className={inputClass} name="mapsUrl" defaultValue={settings.mapsUrl} />
-      </label>
-      <label className="block text-sm font-medium">
-        Facebook
-        <input className={inputClass} name="facebookUrl" defaultValue={settings.facebookUrl} />
-      </label>
-      <label className="block text-sm font-medium">
-        Instagram
-        <input className={inputClass} name="instagramUrl" defaultValue={settings.instagramUrl} />
-      </label>
-      <label className="block text-sm font-medium">
-        TikTok
-        <input className={inputClass} name="tiktokUrl" defaultValue={settings.tiktokUrl} />
-      </label>
-      <label className="block text-sm font-medium">
-        YouTube
-        <input className={inputClass} name="youtubeUrl" defaultValue={settings.youtubeUrl} />
-      </label>
-      {state ? <p className={state.ok ? "text-sm text-green-700" : "text-sm text-red-700"}>{state.ok ? state.message : state.error}</p> : null}
-      <button className="rounded-md bg-slate-900 px-4 py-2 text-white" type="submit" disabled={pending}>
-        {pending ? "Saving..." : "Save site details"}
-      </button>
+    <form action={action} className="stack">
+      <Card title="Contact" description="Shown in the website header and footer.">
+        <div className="form-grid">
+          <Field id="site-phone" label="Phone" help="As guests should see it.">
+            <input className="input" id="site-phone" name="phoneDisplay" type="tel" autoComplete="tel" defaultValue={settings.phoneDisplay} required aria-describedby="site-phone-help" />
+          </Field>
+          <Field id="site-whatsapp" label="WhatsApp number" help="Digits only, with 92 first.">
+            <input className="input" id="site-whatsapp" name="phoneE164" inputMode="numeric" defaultValue={settings.phoneE164} required aria-describedby="site-whatsapp-help" />
+          </Field>
+          <Field id="site-email" label="Email">
+            <input className="input" id="site-email" name="email" type="email" autoComplete="email" defaultValue={settings.email} required />
+          </Field>
+          <Field id="site-map" label="Map link" optional>
+            <input className="input" id="site-map" name="mapsUrl" defaultValue={settings.mapsUrl} />
+          </Field>
+          <div className="field full">
+            <label className="label" htmlFor="site-address">
+              Address
+            </label>
+            <textarea className="textarea" id="site-address" name="address" rows={2} defaultValue={settings.address} required />
+          </div>
+        </div>
+      </Card>
+      <Card title="Social links" description="Leave a link empty to hide its icon.">
+        <div className="form-grid">
+          {SOCIAL.map((link) => (
+            <Field key={link.name} id={`site-${link.name}`} label={link.label} optional>
+              <input className="input" id={`site-${link.name}`} name={link.name} defaultValue={settings[link.name]} />
+            </Field>
+          ))}
+        </div>
+      </Card>
+      <SaveBar label="Save site details" pending={pending} result={state} />
     </form>
   );
 }
