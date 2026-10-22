@@ -573,15 +573,17 @@ async function assertTourPlaceOffice(editorCookie: string, managerCookie: string
   const stale = await db.select({ id: tours.id }).from(tours).where(eq(tours.region, "Link Valley"));
   for (const row of stale) await db.delete(tours).where(eq(tours.id, row.id));
   try {
-    const editorList = await fetch(`${siteBase()}/office/tours`, { headers: { cookie: editorCookie } });
-    const editorHtml = await editorList.text();
-    if (editorList.status !== 200 || !editorHtml.includes("Add tour") || !editorHtml.includes("Delete tour")) {
-      throw new Error("The Editor tours list does not offer add and delete.");
-    }
-    const ownerList = await fetch(`${siteBase()}/office/tours`, { headers: { cookie: ownerCookie } });
-    const ownerHtml = await ownerList.text();
-    if (ownerList.status !== 200 || !ownerHtml.includes("Add tour") || !ownerHtml.includes("Delete tour")) {
-      throw new Error("The Owner tours list does not offer add and delete.");
+    // T-37c: the list links to the new-tour page, and each tour's editor offers Delete tour.
+    const [anyTour] = await db.select({ id: tours.id }).from(tours).limit(1);
+    if (!anyTour) throw new Error("No tour to open in the office.");
+    for (const [who, cookie] of [["Editor", editorCookie], ["Owner", ownerCookie]] as const) {
+      const list = await fetch(`${siteBase()}/office/tours`, { headers: { cookie } });
+      const listHtml = await list.text();
+      const editor = await fetch(`${siteBase()}/office/tours/${encodeURIComponent(anyTour.id)}`, { headers: { cookie } });
+      const editorPageHtml = await editor.text();
+      if (list.status !== 200 || !listHtml.includes('href="/office/tours/new"') || editor.status !== 200 || !editorPageHtml.includes("Delete tour")) {
+        throw new Error(`The ${who} tours screens do not offer add and delete.`);
+      }
     }
     const newPage = await fetch(`${siteBase()}/office/tours/new`, { headers: { cookie: editorCookie } });
     if (newPage.status !== 200 || !(await newPage.text()).includes("Add tour")) {
