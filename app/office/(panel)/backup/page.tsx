@@ -28,7 +28,7 @@ export default async function BackupPage() {
         actions={<BackupNow />}
       />
       <Alert tone="info" title="Restoring a backup">
-        Download the file, then follow docs/backup.md. A restore runs on a copy first.
+        Download the file, then follow &quot;Backups from the office&quot; in docs/backup.md. Restore onto a copy first, never the live database.
       </Alert>
       {rows.length === 0 ? (
         <div className="card">
