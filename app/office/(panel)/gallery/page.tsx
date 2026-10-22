@@ -1,16 +1,6 @@
-import { redirect } from "next/navigation";
-import { getPhotos } from "@/lib/http/site-content";
-import { getOfficeSession } from "@/lib/http/office-session";
-import { GalleryEditor } from "@/components/office/GalleryEditor";
+import { GalleryScreen } from "@/components/office/gallery/GalleryScreen";
 
-export default async function OfficeGalleryPage() {
-  const user = await getOfficeSession();
-  if (!user?.canEditContent) redirect("/office");
-  const photos = await getPhotos();
-  return (
-    <div>
-      <h1 className="mb-6 text-2xl font-semibold">Gallery</h1>
-      <GalleryEditor photos={photos} />
-    </div>
-  );
+export default async function OfficeGalleryPage({ searchParams }: { searchParams: Promise<{ edit?: string }> }) {
+  const { edit } = await searchParams;
+  return <GalleryScreen edit={edit} />;
 }
