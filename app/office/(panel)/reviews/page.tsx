@@ -1,16 +1,6 @@
-import { redirect } from "next/navigation";
-import { getReviews } from "@/lib/http/site-content";
-import { getOfficeSession } from "@/lib/http/office-session";
-import { ReviewsEditor } from "@/components/office/ReviewsEditor";
+import { ReviewsScreen } from "@/components/office/reviews/ReviewsScreen";
 
-export default async function OfficeReviewsPage() {
-  const user = await getOfficeSession();
-  if (!user?.canEditContent) redirect("/office");
-  const reviews = await getReviews();
-  return (
-    <div>
-      <h1 className="mb-6 text-2xl font-semibold">Reviews</h1>
-      <ReviewsEditor reviews={reviews} />
-    </div>
-  );
+export default async function OfficeReviewsPage({ searchParams }: { searchParams: Promise<{ edit?: string }> }) {
+  const { edit } = await searchParams;
+  return <ReviewsScreen edit={edit} />;
 }
