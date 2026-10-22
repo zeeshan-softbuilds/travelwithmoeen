@@ -1,135 +1,104 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { EditorDrawer } from "@/components/office/content/EditorDrawer";
+import type { EditorFrame } from "@/components/office/content/frame";
+import { photoStyle, rememberSaved } from "@/components/office/content/media";
+import { FileField } from "@/components/office/content/PhotoField";
+import { SaveBar } from "@/components/office/content/SaveBar";
+import { SectionsEditor } from "@/components/office/content/SectionsEditor";
+import { Card } from "@/components/office/ui/Card";
+import { Field } from "@/components/office/ui/Field";
+import { Icon } from "@/components/office/ui/Icon";
 import { postOfficeForm } from "@/lib/http/office-client";
 import type { ActionResult } from "@/lib/http/result";
-import type { Blog, BlogSection } from "@/data/blog";
+import type { Blog } from "@/data/blog";
 
-const inputClass = "mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm";
+const SECTIONS = [
+  { id: "post-basics", label: "Basics" },
+  { id: "post-cover", label: "Cover" },
+  { id: "post-sections", label: "Sections" },
+];
 
-type DraftSection = {
-  heading: string;
-  body: string;
-  image: string;
-  highlights: string;
-};
-
-function toDraft(section: BlogSection): DraftSection {
-  return {
-    heading: section.heading ?? "",
-    body: section.body,
-    image: section.image ?? "",
-    highlights: (section.highlight ?? []).join("\n"),
-  };
-}
-
-export function PostForm({ post }: { post: Blog }) {
-  const [sections, setSections] = useState(post.content.map(toDraft));
+export function PostForm({ post, frame }: { post: Blog; frame: EditorFrame }) {
+  const [title, setTitle] = useState(post.title);
+  const [excerpt, setExcerpt] = useState(post.excerpt);
+  const [author, setAuthor] = useState(post.author);
+  const [cover, setCover] = useState(post.coverImage);
+  const [coverPreview, setCoverPreview] = useState("");
   const [state, action, pending] = useActionState(async (previous: ActionResult | null, formData: FormData) => {
     const result = await postOfficeForm("/api/office/posts", formData);
-    if (result.ok) window.location.reload();
+    if (result.ok) {
+      rememberSaved(result.message ?? "Post saved.");
+      window.location.reload();
+    }
     return result;
   }, null as ActionResult | null);
-  const content = sections.map((section) => ({
-    heading: section.heading,
-    body: section.body,
-    image: section.image,
-    highlight: section.highlights
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean),
-  }));
+
+  const preview = (
+    <div className="pv-card">
+      <span className="pv-img" style={photoStyle(coverPreview || cover)} />
+      <div className="pv-body">
+        <small>By {author || "Author"}</small>
+        <b>{title || "Post title"}</b>
+        <p>{excerpt}</p>
+        <span className="pv-link">
+          Read more <Icon name="chevR" />
+        </span>
+      </div>
+    </div>
+  );
 
   return (
-    <form action={action} className="space-y-4 rounded-xl bg-white p-6 shadow">
-      <input type="hidden" name="slug" value={post.slug} />
-      <input type="hidden" name="content" value={JSON.stringify(content)} />
-      <label className="block text-sm font-medium">
-        Title
-        <input className={inputClass} name="title" defaultValue={post.title} required />
-      </label>
-      <label className="block text-sm font-medium">
-        Short text
-        <textarea className={inputClass} name="excerpt" rows={3} defaultValue={post.excerpt} />
-      </label>
-      <div className="grid gap-4 md:grid-cols-2">
-        <label className="block text-sm font-medium">
-          Author
-          <input className={inputClass} name="author" defaultValue={post.author} />
-        </label>
-        <label className="block text-sm font-medium">
-          Date
-          <input className={inputClass} name="date" defaultValue={post.date} />
-        </label>
-      </div>
-      <label className="block text-sm font-medium">
-        Cover photo
-        <input className={inputClass} name="coverImage" defaultValue={post.coverImage} />
-      </label>
-      <label className="block text-sm font-medium">
-        Upload cover
-        <input className={inputClass} name="coverPhoto" type="file" accept="image/jpeg,image/png,image/webp" />
-      </label>
-      {sections.map((section, index) => (
-        <div key={index} className="space-y-2 rounded-md border p-4">
-          <p className="text-sm font-medium">Section {index + 1}</p>
-          <input
-            className={inputClass}
-            value={section.heading}
-            onChange={(event) =>
-              setSections((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, heading: event.target.value } : item)))
-            }
-          />
-          <textarea
-            className={inputClass}
-            rows={4}
-            value={section.body}
-            onChange={(event) =>
-              setSections((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, body: event.target.value } : item)))
-            }
-          />
-          <input
-            className={inputClass}
-            value={section.image}
-            placeholder="Photo path"
-            onChange={(event) =>
-              setSections((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, image: event.target.value } : item)))
-            }
-          />
-          <label className="block text-sm">
-            Upload section photo
-            <input className={inputClass} name={`sectionPhoto_${index}`} type="file" accept="image/jpeg,image/png,image/webp" />
-          </label>
-          <textarea
-            className={inputClass}
-            rows={3}
-            value={section.highlights}
-            onChange={(event) =>
-              setSections((current) =>
-                current.map((item, itemIndex) => (itemIndex === index ? { ...item, highlights: event.target.value } : item)),
-              )
-            }
-          />
-          <button
-            className="text-sm text-red-700"
-            type="button"
-            onClick={() => setSections((current) => current.filter((item, itemIndex) => itemIndex !== index))}
-          >
-            Remove section
-          </button>
-        </div>
-      ))}
-      <button
-        className="text-sm underline"
-        type="button"
-        onClick={() => setSections((current) => [...current, { heading: "", body: "", image: "", highlights: "" }])}
-      >
-        Add section
-      </button>
-      {state ? <p className={state.ok ? "text-sm text-green-700" : "text-sm text-red-700"}>{state.ok ? state.message : state.error}</p> : null}
-      <button className="rounded-md bg-slate-900 px-4 py-2 text-white" type="submit" disabled={pending}>
-        {pending ? "Saving..." : "Save post"}
-      </button>
-    </form>
+    <EditorDrawer
+      title={post.title}
+      description={`${post.author} · ${post.date}`}
+      closeHref={frame.closeHref}
+      previousHref={frame.previousHref}
+      nextHref={frame.nextHref}
+      position={frame.position}
+      viewHref={`/blog/${encodeURIComponent(post.slug)}`}
+      sections={SECTIONS}
+      preview={preview}
+    >
+      <form action={action} className="stack">
+        <input type="hidden" name="slug" value={post.slug} />
+        <Card id="post-basics" title="Basics">
+          <div className="form-grid">
+            <div className="field full">
+              <label className="label" htmlFor="post-title">
+                Title
+              </label>
+              <input className="input" id="post-title" name="title" value={title} onChange={(event) => setTitle(event.target.value)} required />
+            </div>
+            <div className="field full">
+              <label className="label" htmlFor="post-excerpt">
+                Short text
+              </label>
+              <textarea className="textarea" id="post-excerpt" name="excerpt" rows={3} value={excerpt} onChange={(event) => setExcerpt(event.target.value)} aria-describedby="post-excerpt-help" />
+              <p className="help" id="post-excerpt-help">
+                Shown on the blog card and in search results.
+              </p>
+            </div>
+            <Field id="post-author" label="Author">
+              <input className="input" id="post-author" name="author" value={author} onChange={(event) => setAuthor(event.target.value)} />
+            </Field>
+            <Field id="post-date" label="Date">
+              <input className="input" id="post-date" name="date" defaultValue={post.date} />
+            </Field>
+          </div>
+        </Card>
+
+        <Card id="post-cover" title="Cover photo" description="The photo on the blog card and at the top of the post.">
+          <FileField label="Cover" pathName="coverImage" fileName="coverPhoto" value={cover} onChange={setCover} onFile={setCoverPreview} />
+        </Card>
+
+        <Card id="post-sections" title="Sections" description="The post body, top to bottom.">
+          <SectionsEditor sections={post.content} />
+        </Card>
+
+        <SaveBar label="Save post" pending={pending} result={state} />
+      </form>
+    </EditorDrawer>
   );
 }
