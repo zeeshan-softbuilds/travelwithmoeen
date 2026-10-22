@@ -139,6 +139,14 @@ Asked for on the live office, not on the Meadow prototype. This does not rebuild
 |---|---|---|---|
 | T-38 | From `/office/tours`, the Owner and the Editor can add a tour, amend a tour, and delete a tour. A Manager cannot. A tour links to its place or places. The office and the public site show the link on both the tour and the place. | BR-83, BR-03, BR-05, BR-06 | An Editor adds a tour and deletes it. A Manager cannot add, amend, or delete a tour. A renamed place title shows on the linked tour. A renamed tour shows on the place. The place guide is not replaced by the tour. `npm run check:step3` still passes. |
 
+## Found in the T-37c review, 22 October 2026
+
+Not part of the office look. Do it after T-37c is merged, in its own pull request. It does not wait for Moeen.
+
+| ID | Task | Covers | Done when |
+|---|---|---|---|
+| T-40 | A refused content save deletes the files it stored. Today `lib/office/forms.ts` stores an uploaded photo or PDF first, and the save in `lib/office/content-writes.ts` checks the input afterwards. When that check refuses the save, the new file stays in the media store with nothing pointing at it. Delete every file the refused save stored, in the same `lib/` function. Cover every content save that takes a file: tour add and amend, place, post, gallery photo, home slide, and review. Add the case to `scripts/check-step3.ts`. | BR-79, BR-62 | Adding a tour with no location and a new photo is refused, and that photo is not in the media store afterwards. A save that is accepted still keeps its file. The other office media cases in `check-step3.ts` still pass. |
+
 Sprint 3, Phase 2. Starts after T-37 is accepted.
 
 - Hours on each stop

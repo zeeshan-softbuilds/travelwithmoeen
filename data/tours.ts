@@ -1917,7 +1917,7 @@ export const tours: Tour[] = [
       "/images/All_Tour_Images/SwatKalamMalamJabba/Picture2.webp",
       "/images/All_Tour_Images/SwatKalamMalamJabba/Picture1.jpg",
       "/images/All_Tour_Images/SwatKalamMalamJabba/Picture3.jpg",
-      "/images/All_Tour_Images/SwatKalamMalamJabba/Picture4.jpg",
+      "/images/All_Tour_Images/SwatKalamMalamJabba/Picture4.webp",
     ],
     "categories": [
       "Deluxe",
