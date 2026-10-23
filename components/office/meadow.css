@@ -495,6 +495,8 @@
   .office .switch input:checked + .track { background: var(--primary); border-color: var(--primary); }
   .office .switch input:checked + .track .thumb { transform: translateX(var(--space-4)); background: var(--on-primary); }
   .office .switch input:focus-visible + .track { outline: var(--focus-w) solid var(--focus); outline-offset: var(--focus-offset); }
+  .office .range { width: 100%; min-height: var(--size-md); accent-color: var(--primary); }
+  .office .range:focus-visible { outline: var(--focus-w) solid var(--focus); outline-offset: var(--focus-offset); }
   .office .tbl td.is-changed { background: var(--warning-soft) !important; }
   .office .tbl tr.is-error td { box-shadow: inset 0 calc(var(--border-w) * -1) 0 var(--danger); }
   .office .tbl tr.is-error td:first-child { box-shadow: inset var(--border-w-xl) 0 0 var(--danger); }

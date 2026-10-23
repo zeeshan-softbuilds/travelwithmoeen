@@ -32,4 +32,4 @@ export type Air = {
 };
 export type Jeep = { id: number; place: string; mode: string; label: string; amount: number; live: boolean };
 
-export type RateDeskView = { hotels: Hotel[]; vehicles: Vehicle[]; air: Air | null; jeeps: Jeep[]; seasonPercent: 15 | 20 };
+export type RateDeskView = { hotels: Hotel[]; vehicles: Vehicle[]; air: Air | null; jeeps: Jeep[]; seasonPercent: number };
