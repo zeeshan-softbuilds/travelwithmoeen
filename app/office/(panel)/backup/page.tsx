@@ -1,5 +1,12 @@
 import { redirect } from "next/navigation";
-import { BackupButton } from "@/components/office/BackupButton";
+import { BackupNow } from "@/components/office/backups/BackupNow";
+import { formatDateTime } from "@/components/office/format";
+import { Alert } from "@/components/office/ui/Alert";
+import { buttonClass } from "@/components/office/ui/Button";
+import { EmptyState } from "@/components/office/ui/EmptyState";
+import { Icon } from "@/components/office/ui/Icon";
+import { PageHead } from "@/components/office/ui/PageHead";
+import { Table } from "@/components/office/ui/Table";
 import { apiPath } from "@/lib/http/api-path";
 import { getOfficeBackups, getOfficeSession } from "@/lib/http/office-session";
 
@@ -14,36 +21,59 @@ export default async function BackupPage() {
   const rows = await getOfficeBackups();
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Backups</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          A backup runs every night. The newest 30 are kept in private storage. Download one to restore it.
-        </p>
-      </div>
-      <BackupButton />
+    <>
+      <PageHead
+        title="Backups"
+        description="A backup also runs every night. The newest 30 are kept in private storage, not on the website."
+        actions={<BackupNow />}
+      />
+      <Alert tone="info" title="Restoring a backup">
+        Download the file, then follow &quot;Backups from the office&quot; in docs/backup.md. Restore onto a copy first, never the live database.
+      </Alert>
       {rows.length === 0 ? (
-        <p className="text-sm text-slate-600">No backups yet.</p>
-      ) : (
-        <div className="space-y-2">
-          {rows.map((row) => (
-            <div key={row.name} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white p-4 shadow">
-              <div>
-                <p className="font-medium">{new Date(row.uploadedAt).toLocaleString("en-US", { timeZone: "Asia/Karachi" })}</p>
-                <p className="text-sm text-slate-500">
-                  {row.name} · {formatSize(row.size)}
-                </p>
-              </div>
-              <a
-                className="rounded-md border border-slate-300 px-3 py-1 text-sm"
-                href={apiPath(`/api/office/backup/file?name=${encodeURIComponent(row.name)}`)}
-              >
-                Download
-              </a>
-            </div>
-          ))}
+        <div className="card">
+          <EmptyState icon="database" title="No backups yet">
+            The nightly backup and each Back up now appear here.
+          </EmptyState>
         </div>
+      ) : (
+        <Table label="Backups">
+          <thead>
+            <tr>
+              <th scope="col">Made</th>
+              <th scope="col">File</th>
+              <th scope="col" className="r">
+                Size
+              </th>
+              <th scope="col" className="r">
+                <span className="sr-only">Download</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.name}>
+                <td className="nowrap">
+                  <b>{formatDateTime(row.uploadedAt)}</b>
+                  <small className="cell-sub">Pakistan time</small>
+                </td>
+                <td data-label="File" className="mono clip">
+                  {row.name}
+                </td>
+                <td data-label="Size" className="r">
+                  {formatSize(row.size)}
+                </td>
+                <td data-label="Download" className="r">
+                  <a className={buttonClass({ size: "sm" })} href={apiPath(`/api/office/backup/file?name=${encodeURIComponent(row.name)}`)}>
+                    <Icon name="download" />
+                    Download
+                  </a>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
       )}
-    </div>
+    </>
   );
 }
