@@ -1,7 +1,7 @@
 import { asc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { airExtras, hotelRates, jeepLines, seasons, vehicleRates } from "@/lib/db/schema";
-import type { HotelRateRow, JeepLineRow, RateCatalog, SeasonPercent, TripMode, VehicleRateRow } from "@/lib/quote";
+import { DEFAULT_MARGIN, isMarginPercent, type HotelRateRow, type JeepLineRow, type MarginPercent, type RateCatalog, type TripMode, type VehicleRateRow } from "@/lib/quote";
 
 const MONEY_MAX = 10_000_000;
 
@@ -25,6 +25,11 @@ export function readCount(raw: string, label: string, max: number): { ok: true; 
   return { ok: true, count };
 }
 
+// The saved margin, read as stored. The starting value is used only when no row is saved yet.
+function savedMargin(stored: number | undefined): MarginPercent {
+  return isMarginPercent(stored) ? stored : DEFAULT_MARGIN;
+}
+
 export async function loadCatalog(): Promise<RateCatalog> {
   const [hotels, vehicles, airRows, jeeps, seasonRows] = await Promise.all([
     db.select().from(hotelRates).orderBy(asc(hotelRates.place), asc(hotelRates.grade)),
@@ -34,7 +39,7 @@ export async function loadCatalog(): Promise<RateCatalog> {
     db.select().from(seasons).limit(1),
   ]);
   const air = airRows[0];
-  const season = seasonRows[0]?.percent === 15 ? 15 : 20;
+  const margin = savedMargin(seasonRows[0]?.percent);
   return {
     hotels: hotels.map(toHotel),
     vehicles: vehicles.map(toVehicle),
@@ -48,7 +53,7 @@ export async function loadCatalog(): Promise<RateCatalog> {
       sticker: air?.sticker ?? 0,
     },
     jeeps: jeeps.map(toJeep),
-    seasonPercent: season,
+    seasonPercent: margin,
   };
 }
 
@@ -93,7 +98,8 @@ function toJeep(row: typeof jeepLines.$inferSelect): JeepLineRow {
 export async function loadRateDesk() {
   const [hotels, vehicles, airRows, jeeps, seasonRows] = await Promise.all([
     db.select().from(hotelRates).orderBy(asc(hotelRates.place), asc(hotelRates.startCity), asc(hotelRates.grade)),
-    db.select().from(vehicleRates).orderBy(asc(vehicleRates.place), asc(vehicleRates.vehicle)),
+    // The id last keeps rows with the same place and vehicle in a steady order after a save.
+    db.select().from(vehicleRates).orderBy(asc(vehicleRates.place), asc(vehicleRates.vehicle), asc(vehicleRates.id)),
     db.select().from(airExtras).limit(1),
     db.select().from(jeepLines).orderBy(asc(jeepLines.id)),
     db.select().from(seasons).limit(1),
@@ -103,6 +109,6 @@ export async function loadRateDesk() {
     vehicles,
     air: airRows[0] ?? null,
     jeeps,
-    seasonPercent: (seasonRows[0]?.percent === 15 ? 15 : 20) as SeasonPercent,
+    seasonPercent: savedMargin(seasonRows[0]?.percent),
   };
 }

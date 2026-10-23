@@ -1,12 +1,12 @@
 "use client";
 
-// Moved unchanged from the old RatesDesk. T-37f replaces the season control with the margin, and
-// T-37g restyles the quote form.
-import { useActionState } from "react";
+// The quote form, moved from the old RatesDesk. T-37f gave it the margin slider. T-37g restyles it.
+import { useActionState, useState } from "react";
 import { useRouter } from "next/navigation";
 import { postOfficeForm } from "@/lib/http/office-client";
 import type { ActionResult } from "@/lib/http/result";
 import { GUEST_GRADES } from "@/lib/quote";
+import { MARGIN_MAX } from "@/lib/quote";
 import type { Vehicle } from "@/components/office/rates/types";
 
 function useRateAction() {
@@ -23,24 +23,8 @@ function Note({ state }: { state: ActionResult | null }) {
   return <p className="mt-3 text-sm text-red-700">{state.error}</p>;
 }
 
-export function SeasonForm({ percent }: { percent: 15 | 20 }) {
-  const [state, action, pending] = useRateAction();
-  return (
-    <form action={action} className="rounded-xl bg-white p-6 shadow">
-      <h2 className="text-lg font-semibold">Season</h2>
-      <input name="kind" type="hidden" value="season" />
-      <label className="mt-4 block text-sm" htmlFor="percent">Active profit</label>
-      <select className="mt-1 rounded-md border px-3 py-2" defaultValue={String(percent)} id="percent" name="percent">
-        <option value="15">15 percent</option>
-        <option value="20">20 percent</option>
-      </select>
-      <Note state={state} />
-      <button className="mt-4 rounded-md bg-slate-900 px-4 py-2 text-white" disabled={pending} type="submit">Save season</button>
-    </form>
-  );
-}
-
-export function QuoteForm({ places, vehicles }: { places: string[]; vehicles: Vehicle[] }) {
+export function QuoteForm({ places, vehicles, margin }: { places: string[]; vehicles: Vehicle[]; margin: number }) {
+  const [quoteMargin, setQuoteMargin] = useState(String(margin));
   const vehicleNames = [...new Set(vehicles.filter((row) => row.live).map((row) => row.vehicle))];
   const [state, action, pending] = useRateAction();
   return (
@@ -79,12 +63,33 @@ export function QuoteForm({ places, vehicles }: { places: string[]; vehicles: Ve
         <label className="block text-sm">Children<input className="mt-1 w-full rounded-md border px-3 py-2" name="children" defaultValue="0" /></label>
         <label className="block text-sm">Lap infants<input className="mt-1 w-full rounded-md border px-3 py-2" name="lapInfants" defaultValue="0" /></label>
         <label className="block text-sm">Infants with a seat<input className="mt-1 w-full rounded-md border px-3 py-2" name="seatInfants" defaultValue="0" /></label>
-        <label className="block text-sm">Season
-          <select className="mt-1 w-full rounded-md border px-3 py-2" name="seasonPercent" defaultValue="20">
-            <option value="20">20 percent</option>
-            <option value="15">15 percent</option>
-          </select>
-        </label>
+        <div className="block text-sm md:col-span-2">
+          <label htmlFor="quote-margin">Profit margin for this quote, percent</label>
+          <div className="mt-1 flex items-center gap-3">
+            <input
+              className="w-24 rounded-md border px-3 py-2"
+              id="quote-margin"
+              name="seasonPercent"
+              inputMode="numeric"
+              value={quoteMargin}
+              onChange={(event) => setQuoteMargin(event.target.value)}
+              aria-describedby="quote-margin-help"
+            />
+            <input
+              className="range"
+              type="range"
+              min={0}
+              max={MARGIN_MAX}
+              step={1}
+              value={/^\d+$/.test(quoteMargin) ? Math.min(Number(quoteMargin), MARGIN_MAX) : margin}
+              onChange={(event) => setQuoteMargin(event.target.value)}
+              aria-label="Profit margin for this quote, slider"
+            />
+          </div>
+          <p className="mt-1 text-slate-500" id="quote-margin-help">
+            Starts at the saved margin, {margin} percent. A whole number from 0 to 100. Guests always get the saved margin.
+          </p>
+        </div>
         <label className="flex items-center gap-2 text-sm"><input name="guide" type="checkbox" />Guide</label>
         <label className="flex items-center gap-2 text-sm"><input name="meals" type="checkbox" />Meals</label>
         <label className="block text-sm">Night number<input className="mt-1 w-full rounded-md border px-3 py-2" name="night" /></label>

@@ -14,7 +14,7 @@ import {
 import { canEditRates } from "@/lib/auth/permissions";
 import type { SessionUser } from "@/lib/auth/session";
 import { forbidden, type ActionResult } from "@/lib/http/result";
-import { buildQuote, type DayEdit, type NightEdit, type QuoteInput, type SeasonPercent } from "@/lib/quote";
+import { buildQuote, readMarginPercent, type DayEdit, type MarginPercent, type NightEdit, type QuoteInput } from "@/lib/quote";
 import { loadCatalog, loadRateDesk, readAmount, readCount } from "@/lib/rates";
 
 export async function loadRateDeskAs(actor: SessionUser) {
@@ -98,14 +98,15 @@ export async function saveJeepLineAs(actor: SessionUser, formData: FormData): Pr
   return { ok: true, message: "Jeep line saved." };
 }
 
-export async function saveSeasonAs(actor: SessionUser, formData: FormData): Promise<ActionResult> {
+// The saved profit margin, one whole percent from 0 to 100, kept in the one seasons row.
+export async function saveMarginAs(actor: SessionUser, formData: FormData): Promise<ActionResult> {
   if (!canEditRates(actor.role)) return forbidden("You cannot change a price.");
-  const percent = String(formData.get("percent") ?? "").trim();
-  if (percent !== "15" && percent !== "20") return { ok: false, error: "Choose 15 percent or 20 percent." };
+  const margin = readMarginPercent(String(formData.get("percent") ?? ""));
+  if (!margin.ok) return margin;
   const [row] = await db.select({ id: seasons.id }).from(seasons).limit(1);
-  if (!row) await db.insert(seasons).values({ percent: Number(percent) });
-  else await db.update(seasons).set({ percent: Number(percent) }).where(eq(seasons.id, row.id));
-  return { ok: true, message: "Season saved." };
+  if (!row) await db.insert(seasons).values({ percent: margin.percent });
+  else await db.update(seasons).set({ percent: margin.percent }).where(eq(seasons.id, row.id));
+  return { ok: true, message: `Profit margin saved: ${margin.percent} percent.` };
 }
 
 export async function quoteInputFromForm(formData: FormData): Promise<{ ok: true; input: QuoteInput } | { ok: false; error: string }> {
@@ -119,8 +120,14 @@ export async function quoteInputFromForm(formData: FormData): Promise<{ ok: true
   if (!lapInfants.ok) return lapInfants;
   const seatInfants = readCount(String(formData.get("seatInfants") ?? "0"), "the infants with a seat", 60);
   if (!seatInfants.ok) return seatInfants;
-  const season = String(formData.get("seasonPercent") ?? "").trim();
-  const seasonPercent: SeasonPercent | undefined = season === "15" || season === "20" ? Number(season) as SeasonPercent : undefined;
+  // A margin for this one quote. Blank uses the saved margin. Anything else must be 0 to 100.
+  const marginText = String(formData.get("seasonPercent") ?? "").trim();
+  let seasonPercent: MarginPercent | undefined;
+  if (marginText) {
+    const margin = readMarginPercent(marginText);
+    if (!margin.ok) return margin;
+    seasonPercent = margin.percent;
+  }
   const nightEdits: NightEdit[] = [];
   const night = String(formData.get("night") ?? "").trim();
   const nightRate = String(formData.get("nightRate") ?? "").trim();
@@ -256,7 +263,7 @@ export async function savePriceFromKind(actor: SessionUser, formData: FormData):
   if (kind === "vehicle") return saveVehicleRateAs(actor, formData);
   if (kind === "air") return saveAirExtraAs(actor, formData);
   if (kind === "jeep") return saveJeepLineAs(actor, formData);
-  if (kind === "season") return saveSeasonAs(actor, formData);
+  if (kind === "season") return saveMarginAs(actor, formData);
   if (kind === "quote") return saveQuoteAs(actor, formData);
   if (!canEditRates(actor.role)) return forbidden("You cannot change a price.");
   return { ok: false, error: "Choose a rate to save." };

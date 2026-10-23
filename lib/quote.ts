@@ -2,7 +2,27 @@ export const GUEST_GRADES = ["Deluxe", "Executive", "Luxury", "Ultra Luxury"] as
 export type GuestGrade = (typeof GUEST_GRADES)[number];
 export type HotelGrade = GuestGrade | "Premier";
 export type TripMode = "road" | "air";
-export type SeasonPercent = 15 | 20;
+// The profit margin: any whole percent from 0 to 100 (BR-22, BR-43). The database column and the
+// request field keep the older name season_percent / seasonPercent, so old quotes still read.
+export type MarginPercent = number;
+export const MARGIN_MAX = 100;
+// The starting value until Moeen answers S-2.
+export const DEFAULT_MARGIN = 20;
+
+export function isMarginPercent(value: unknown): value is MarginPercent {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= MARGIN_MAX;
+}
+
+// Reads a margin typed in a form or sent in a request. Blank, negative, decimal, and non-numeric
+// values are refused, as is anything over 100.
+export function readMarginPercent(raw: string): { ok: true; percent: MarginPercent } | { ok: false; error: string } {
+  const text = raw.trim();
+  if (!text) return { ok: false, error: "Enter a profit margin from 0 to 100." };
+  if (!/^\d+$/.test(text)) return { ok: false, error: "Enter the profit margin as a whole number from 0 to 100." };
+  const percent = Number(text);
+  if (percent > MARGIN_MAX) return { ok: false, error: "Enter a profit margin of 100 or less." };
+  return { ok: true, percent };
+}
 
 const GRADES: HotelGrade[] = ["Deluxe", "Premier", "Executive", "Luxury", "Ultra Luxury"];
 const MEAL_PER_NIGHT: Record<HotelGrade, number> = {
@@ -67,7 +87,7 @@ export type RateCatalog = {
   vehicles: VehicleRateRow[];
   air: AirExtraRow;
   jeeps: JeepLineRow[];
-  seasonPercent: SeasonPercent;
+  seasonPercent: MarginPercent;
 };
 
 export type NightEdit = { night: number; rate: number; hotelName?: string };
@@ -96,7 +116,7 @@ export type QuoteInput = {
   share?: "twin" | "triple";
   guide: boolean;
   meals: boolean;
-  seasonPercent?: SeasonPercent;
+  seasonPercent?: MarginPercent;
   nightEdits?: NightEdit[];
   dayEdits?: DayEdit[];
   paidExtras?: { name: string; amount: number }[];
@@ -116,7 +136,7 @@ export type QuoteSuccess = {
   subtotal: number;
   profit: number;
   total: number;
-  seasonPercent: SeasonPercent;
+  seasonPercent: MarginPercent;
   nights: NightLine[];
   days: DayLine[];
   lines: QuoteLine[];
@@ -359,11 +379,11 @@ export function buildQuote(input: QuoteInput, catalog: RateCatalog): QuoteResult
   for (const extra of extras) lines.push({ label: extra.name.trim(), amount: extra.amount });
 
   const subtotal = lines.reduce((sum, line) => sum + line.amount, 0);
-  const seasonPercent = input.seasonPercent ?? catalog.seasonPercent;
-  if (seasonPercent !== 15 && seasonPercent !== 20) {
-    return { ok: false, error: "The season is 15 percent or 20 percent." };
+  const margin = input.seasonPercent ?? catalog.seasonPercent;
+  if (!isMarginPercent(margin)) {
+    return { ok: false, error: "The profit margin is a whole number from 0 to 100." };
   }
-  const profit = Math.round((subtotal * seasonPercent) / 100);
+  const profit = Math.round((subtotal * margin) / 100);
   const averageNightly = nightsCount > 0 ? nights.reduce((sum, night) => sum + night.rate, 0) / nightsCount : 0;
   const twins = catalog.hotels.filter((row) => row.place === place && row.startCity === city);
   let averageGrade = "";
@@ -386,7 +406,7 @@ export function buildQuote(input: QuoteInput, catalog: RateCatalog): QuoteResult
     subtotal,
     profit,
     total: subtotal + profit,
-    seasonPercent,
+    seasonPercent: margin,
     nights,
     days,
     lines,
