@@ -62,7 +62,7 @@ const NAV: { title: string; links: GatedLink[] }[] = [
 
 // The New menu in the top bar. Each item opens the page that holds that form.
 const NEW_LINKS: GatedLink[] = [
-  { href: "/office/rates", label: "New quote", icon: "calc", allowed: canEditRates },
+  { href: "/office/rates/quote", label: "New quote", icon: "calc", allowed: canEditRates },
   { href: "/office/tours/new", label: "New tour", icon: "map", allowed: canEditContent },
   { href: "/office/gallery", label: "Gallery photo", icon: "image", allowed: canEditContent },
   { href: "/office/reviews", label: "Review", icon: "star", allowed: canEditContent },

@@ -62,8 +62,8 @@ export default async function OfficeDashboardPage() {
     const vehiclesOff = desk.vehicles.filter((row) => !row.live).length;
     const jeepsOff = desk.jeeps.filter((row) => !row.live).length;
     if (hotelsOff) todos.push({ tone: "info", icon: "tag", text: `${plural(hotelsOff, "hotel rate is", "hotel rates are")} not offered to guests`, href: "/office/rates", action: "Check" });
-    if (vehiclesOff) todos.push({ tone: "info", icon: "tag", text: `${plural(vehiclesOff, "vehicle is", "vehicles are")} switched off`, href: "/office/rates", action: "Check" });
-    if (jeepsOff) todos.push({ tone: "info", icon: "tag", text: `${plural(jeepsOff, "jeep line is", "jeep lines are")} switched off`, href: "/office/rates", action: "Check" });
+    if (vehiclesOff) todos.push({ tone: "info", icon: "tag", text: `${plural(vehiclesOff, "vehicle is", "vehicles are")} switched off`, href: "/office/rates/vehicles", action: "Check" });
+    if (jeepsOff) todos.push({ tone: "info", icon: "tag", text: `${plural(jeepsOff, "jeep line is", "jeep lines are")} switched off`, href: "/office/rates/jeeps", action: "Check" });
   }
   if (backups) {
     if (!lastBackup) {
@@ -97,7 +97,7 @@ export default async function OfficeDashboardPage() {
         />
         <Stat icon="clock" label="In progress" value={inProgress.length} meta="Waiting on you or the guest" href="/office/requests?status=in_progress" />
         {user.canEditRates ? (
-          <Stat icon="tag" label="Profit margin" value={desk ? `${desk.seasonPercent}%` : "Not loaded"} meta="Guests see this on the total" href="/office/rates" />
+          <Stat icon="tag" label="Profit margin" value={desk ? `${desk.seasonPercent}%` : "Not loaded"} meta="Guests see this on the total" href="/office/rates/margin" />
         ) : (
           <Stat
             icon="map"
