@@ -5,8 +5,7 @@ import { useActionState, useState } from "react";
 import { useRouter } from "next/navigation";
 import { postOfficeForm } from "@/lib/http/office-client";
 import type { ActionResult } from "@/lib/http/result";
-import { GUEST_GRADES } from "@/lib/quote";
-import { MARGIN_MAX } from "@/lib/quote";
+import { GUEST_GRADES, MARGIN_MAX } from "@/lib/quote";
 import type { Vehicle } from "@/components/office/rates/types";
 
 function useRateAction() {

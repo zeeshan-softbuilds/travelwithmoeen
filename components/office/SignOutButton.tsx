@@ -10,7 +10,9 @@ export function SignOutButton() {
       type="button"
       onClick={async () => {
         await fetch(apiPath("/api/office/logout"), { method: "POST", credentials: "include" });
-        window.location.assign("/office/login");
+        // A full page load on purpose: it drops everything the office kept in the browser. Replace also
+        // keeps the signed-out office page out of the Back history.
+        window.location.replace("/office/login");
       }}
     >
       <Icon name="logout" />
