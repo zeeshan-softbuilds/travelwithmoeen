@@ -3,7 +3,7 @@ import path from "path";
 import { spawn } from "child_process";
 import { count, eq, max } from "drizzle-orm";
 import { db, sql } from "../lib/db";
-import { guestRequests, loginFailures, places, posts, reviews, tourPlaces, tours, users } from "../lib/db/schema";
+import { guestRequests, loginFailures, places, posts, reviews, seasons, tourPlaces, tours, users } from "../lib/db/schema";
 import { inferTourPlaceLinks, linkInferredTourPlaces } from "../lib/office/tour-places";
 import { authenticate } from "../lib/auth/authenticate";
 import { createUserAs, removeUserAs } from "../lib/office/users";
@@ -847,6 +847,7 @@ async function assertOfficeRequests(savedIds: number[]) {
     await assertTourPlaceOffice(editorCookie, managerCookie, ownerCookie);
     await assertOfficeShellLinks(editorCookie, managerCookie, ownerCookie);
     await assertSessionRequestCount(ownerCookie);
+    await assertProfitMargin(editorCookie, managerCookie);
     const ownerDelete = await officePost("/api/office/requests/delete", deleteForm, ownerCookie);
     if (ownerDelete.status !== 200 || !ownerDelete.body.ok) {
       throw new Error(`An Owner delete returned ${ownerDelete.status}.`);
@@ -899,6 +900,76 @@ function sidebarLinks(html: string) {
     if (href) links.push(href);
   }
   return links;
+}
+
+const SKARDU_QUOTE = {
+  place: "Skardu Valley",
+  startCity: "Islamabad",
+  mode: "road",
+  days: 5,
+  adults: 2,
+  children: 0,
+  lapInfants: 0,
+  seatInfants: 0,
+  grade: "Deluxe",
+  vehicle: "Gli Car",
+  guide: false,
+  meals: false,
+};
+
+// A Manager's quote sends no margin, so it uses the saved one and shows the subtotal and the profit.
+// A guest's quote shows only the total.
+async function skarduQuote(cookie: string) {
+  const response = await fetch(`${siteBase()}/api/quote`, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...(cookie ? { cookie } : {}) },
+    body: JSON.stringify(SKARDU_QUOTE),
+  });
+  return (await response.json()) as { ok?: boolean; subtotal?: number; profit?: number; total?: number; seasonPercent?: number };
+}
+
+function marginForm(percent: string) {
+  const form = new FormData();
+  form.set("kind", "season");
+  form.set("percent", percent);
+  return form;
+}
+
+// T-37f: the margin is one whole percent from 0 to 100, saved by the Owner or a Manager only.
+async function assertProfitMargin(editorCookie: string, managerCookie: string) {
+  const [saved] = await db.select({ percent: seasons.percent }).from(seasons).limit(1);
+  if (saved?.percent !== 20) throw new Error(`The profit margin starts at ${saved?.percent ?? "nothing"}, not 20.`);
+  try {
+    const editorSave = await officePost("/api/office/rates", marginForm("16"), editorCookie);
+    if (editorSave.status !== 403) throw new Error(`An Editor margin save returned ${editorSave.status}.`);
+    for (const refused of ["101", "12.5", "-1", ""]) {
+      const result = await officePost("/api/office/rates", marginForm(refused), managerCookie);
+      if (result.status !== 400 || result.body.ok) throw new Error(`The margin "${refused}" was not refused: ${result.status}.`);
+    }
+    const [unchanged] = await db.select({ percent: seasons.percent }).from(seasons).limit(1);
+    if (unchanged?.percent !== 20) throw new Error("A refused margin changed the saved margin.");
+
+    const atTwenty = await skarduQuote(managerCookie);
+    if (atTwenty.subtotal !== 117000 || atTwenty.profit !== 23400 || atTwenty.total !== 140400) {
+      throw new Error(`The Skardu quote at 20 percent was ${atTwenty.total}.`);
+    }
+    for (const [percent, profit] of [["16", 18720], ["30", 35100]] as const) {
+      const result = await officePost("/api/office/rates", marginForm(percent), managerCookie);
+      if (result.status !== 200 || !result.body.ok) throw new Error(`The margin ${percent} was not saved: ${result.body.error ?? result.status}.`);
+      const quote = await skarduQuote(managerCookie);
+      if (quote.seasonPercent !== Number(percent) || quote.subtotal !== 117000 || quote.profit !== profit || quote.total !== 117000 + profit) {
+        throw new Error(`At ${percent} percent the Skardu quote was ${quote.subtotal} plus ${quote.profit}.`);
+      }
+      const guest = await skarduQuote("");
+      if (guest.total !== 117000 + profit || guest.profit !== undefined) {
+        throw new Error(`At ${percent} percent the guest total was ${guest.total}.`);
+      }
+    }
+  } finally {
+    await db.update(seasons).set({ percent: 20 });
+  }
+  const [back] = await db.select({ percent: seasons.percent }).from(seasons).limit(1);
+  if (back?.percent !== 20) throw new Error("The profit margin was not put back to 20.");
 }
 
 // T-37b: the session reply carries the sidebar count of new requests, and only with a session.

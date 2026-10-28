@@ -36,14 +36,31 @@ The nightly backup and each Back up now in Office → Backups are `.json` files 
    DATABASE_URL=postgres://<user>:<password>@localhost:5434/travelwithmoeen_restore_copy npx drizzle-kit push --force
    ```
 
+   In PowerShell, set `DATABASE_URL` first and clear it after:
+
+   ```powershell
+   docker compose exec postgres createdb -U <user> travelwithmoeen_restore_copy
+   $env:DATABASE_URL = "postgres://<user>:<password>@localhost:5434/travelwithmoeen_restore_copy"
+   npx drizzle-kit push --force
+   Remove-Item Env:DATABASE_URL
+   ```
+
 3. Restore into the copy and read the counts it prints, one line per table, such as `tours: 32 rows`. Check them against the live site:
 
    ```bash
    DATABASE_URL=postgres://<user>:<password>@localhost:5434/travelwithmoeen_restore_copy npm run db:restore -- <file.json> --yes
    ```
 
+   In PowerShell:
+
+   ```powershell
+   $env:DATABASE_URL = "postgres://<user>:<password>@localhost:5434/travelwithmoeen_restore_copy"
+   npm run db:restore -- <file.json> --yes
+   Remove-Item Env:DATABASE_URL
+   ```
+
    The first line names the database it is writing to. Stop if it is not the copy. If any table fails, nothing is restored.
-4. Restore the real database only after the copy looks right and the client has been told (BR-55). Stop the site, run the same command with the live `DATABASE_URL`, then start the site. Remove the copy with `docker compose exec postgres dropdb -U <user> travelwithmoeen_restore_copy`.
+4. Restore the real database only after the copy looks right and the client has been told (BR-55). Stop the site, run the same command with the live `DATABASE_URL`, then start the site. In PowerShell, run `Remove-Item Env:DATABASE_URL` first, so the command reads the live address from `.env`. Remove the copy with `docker compose exec postgres dropdb -U <user> travelwithmoeen_restore_copy`.
 
 ## Tried on 8 October 2026
 

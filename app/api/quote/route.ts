@@ -1,5 +1,5 @@
 import { getQuoteAccess } from "@/lib/auth/quote-access";
-import { buildQuote, type DayEdit, type NightEdit, type QuoteInput, type SeasonPercent } from "@/lib/quote";
+import { buildQuote, readMarginPercent, type DayEdit, type MarginPercent, type NightEdit, type QuoteInput } from "@/lib/quote";
 import { loadCatalog, readAmount, readCount } from "@/lib/rates";
 
 function text(body: Record<string, unknown>, key: string) {
@@ -25,7 +25,14 @@ export async function POST(request: Request) {
   if (!lapInfants.ok) return Response.json(lapInfants, { status: 400 });
   const seatInfants = readCount(text(body, "seatInfants") || "0", "the infants with a seat", 60);
   if (!seatInfants.ok) return Response.json(seatInfants, { status: 400 });
-  const season = text(body, "seasonPercent");
+  // An Owner or Manager may price one quote at another margin. A guest quote always uses the saved one.
+  let margin: MarginPercent | undefined;
+  const marginText = text(body, "seasonPercent").trim();
+  if (rateEditor && marginText) {
+    const read = readMarginPercent(marginText);
+    if (!read.ok) return Response.json(read, { status: 400 });
+    margin = read.percent;
+  }
   const input: QuoteInput = {
     place: text(body, "place"),
     startCity: text(body, "startCity"),
@@ -40,7 +47,7 @@ export async function POST(request: Request) {
     roomCount: text(body, "roomCount") ? Number(text(body, "roomCount")) : undefined,
     guide: body.guide === true,
     meals: body.meals === true,
-    seasonPercent: rateEditor && (season === "15" || season === "20") ? (Number(season) as SeasonPercent) : undefined,
+    seasonPercent: margin,
     otherNote: text(body, "otherNote"),
   };
   const share = text(body, "share");
