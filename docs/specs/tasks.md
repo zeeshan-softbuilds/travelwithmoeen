@@ -139,7 +139,7 @@ Asked for on the live office, not on the Meadow prototype. This does not rebuild
 |---|---|---|---|
 | T-38 | From `/office/tours`, the Owner and the Editor can add a tour, amend a tour, and delete a tour. A Manager cannot. A tour links to its place or places. The office and the public site show the link on both the tour and the place. | BR-83, BR-03, BR-05, BR-06 | An Editor adds a tour and deletes it. A Manager cannot add, amend, or delete a tour. A renamed place title shows on the linked tour. A renamed tour shows on the place. The place guide is not replaced by the tour. `npm run check:step3` still passes. |
 
-## Found in the T-37c and T-37d reviews
+## Found in the T-37c, T-37d, and T-40 reviews
 
 Not part of the office look. Do it after T-37c is merged, in its own pull request. It does not wait for Moeen.
 
@@ -147,6 +147,7 @@ Not part of the office look. Do it after T-37c is merged, in its own pull reques
 |---|---|---|---|
 | T-40 | A refused content save deletes the files it stored. Today `lib/office/forms.ts` stores an uploaded photo or PDF first, and the save in `lib/office/content-writes.ts` checks the input afterwards. When that check refuses the save, the new file stays in the media store with nothing pointing at it. Delete every file the refused save stored, in the same `lib/` function. Cover every content save that takes a file: tour add and amend, place, post, gallery photo, home slide, and review. Add the case to `scripts/check-step3.ts`. | BR-79, BR-62 | Adding a tour with no location and a new photo is refused, and that photo is not in the media store afterwards. A save that is accepted still keeps its file. The other office media cases in `check-step3.ts` still pass. |
 | T-41 | An office save with no form body returns 400, not 500. Today `lib/http/handle-form.ts` checks the session, then reads `await request.formData()` before the role check. A missing body, or one that is not a form, throws there and the reply is a 500. Catch the failed read and return 400 with "Send the form again." A request with no session still gets 401 first. Add the case to `scripts/check-step3.ts`. | BR-60 | A signed-in office save with no body returns 400. The same request with no session returns 401. |
+| T-42 | A save deletes a record's old files only after the new record is written. Today the saves in `lib/office/content-writes.ts` call `removeDroppedFiles` before they write, so if the write fails the record still points at a file that was just deleted. Move the old-file delete after the write, or after the transaction commits, in tour amend, place, post, gallery photo, home slide, and review. If that delete fails after the write, the save still counts: return success with a note, and log the failure. Add the case to `scripts/check-step3.ts`. | BR-79, BR-62 | Replacing a photo still removes the old office file. A refused save leaves the record's current file in place, in the record and in the media store. |
 
 Sprint 3, Phase 2. Starts after T-37 is accepted.
 

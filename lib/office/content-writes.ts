@@ -12,6 +12,19 @@ import { tourIdFromName, uniquePlaceSlugs } from "@/lib/office/tour-places";
 
 export { saveUploadedImage, saveUploadedPdf } from "@/lib/office/media";
 
+// T-42: a save deletes the record's old files only after the new record is written, so a failed
+// write never leaves the record pointing at a deleted file. If that delete then fails, the save has
+// still happened: it is reported as saved, with a note, and the failure is logged.
+async function removeOldFilesAfterSave(before: string[], after: string[], saved: Extract<ActionResult, { ok: true }>): Promise<ActionResult> {
+  try {
+    await deleteOfficeFiles(droppedOfficeFiles(before, after));
+    return saved;
+  } catch (error) {
+    console.error("An old office file could not be removed after a save.", error);
+    return { ...saved, message: `${saved.message ?? "Saved."} An old file could not be removed from storage.` };
+  }
+}
+
 async function removeDroppedFiles(before: string[], after: string[]): Promise<ActionResult | null> {
   try {
     await deleteOfficeFiles(droppedOfficeFiles(before, after));
@@ -97,11 +110,6 @@ export async function updateTourAs(actor: SessionUser, input: TourEditInput): Pr
   if (!existing) {
     return { ok: false, error: "That tour was not found." };
   }
-  const removed = await removeDroppedFiles(
-    [existing.image, existing.pdf, ...existing.galleryImages],
-    [input.image.trim(), input.pdf.trim(), ...input.galleryImages],
-  );
-  if (removed) return removed;
   await db.transaction(async (tx) => {
     await tx
       .update(tours)
@@ -136,7 +144,11 @@ export async function updateTourAs(actor: SessionUser, input: TourEditInput): Pr
     }
     if (placeSlugs) await writeTourPlaces(tx, input.id, placeSlugs);
   });
-  return { ok: true, message: "Tour saved.", tourIds: [input.id] };
+  return removeOldFilesAfterSave(
+    [existing.image, existing.pdf, ...existing.galleryImages],
+    [input.image.trim(), input.pdf.trim(), ...input.galleryImages],
+    { ok: true, message: "Tour saved.", tourIds: [input.id] },
+  );
 }
 
 export async function createTourAs(actor: SessionUser, input: Omit<TourEditInput, "id">): Promise<ActionResult> {
@@ -262,12 +274,6 @@ export async function updatePlaceAs(
     .from(places)
     .where(eq(places.slug, input.slug))
     .limit(1);
-  if (existing) {
-    const previous = [existing.bannerImage, ...existing.content.map((section) => section.image ?? "")];
-    const next = [input.bannerImage.trim(), ...input.content.map((section) => section.image ?? "")];
-    const removed = await removeDroppedFiles(previous, next);
-    if (removed) return removed;
-  }
   const title = input.title.trim();
   const linkedTourIds = await db.transaction(async (tx) => {
     await tx
@@ -292,7 +298,13 @@ export async function updatePlaceAs(
     }
     return ids;
   });
-  return { ok: true, message: "Place saved.", tourIds: linkedTourIds };
+  const saved = { ok: true as const, message: "Place saved.", tourIds: linkedTourIds };
+  if (!existing) return saved;
+  return removeOldFilesAfterSave(
+    [existing.bannerImage, ...existing.content.map((section) => section.image ?? "")],
+    [input.bannerImage.trim(), ...input.content.map((section) => section.image ?? "")],
+    saved,
+  );
 }
 
 export async function updatePostAs(
@@ -318,12 +330,6 @@ export async function updatePostAs(
     .from(posts)
     .where(eq(posts.slug, input.slug))
     .limit(1);
-  if (existing) {
-    const previous = [existing.coverImage, ...existing.content.map((section) => section.image ?? "")];
-    const next = [input.coverImage.trim(), ...input.content.map((section) => section.image ?? "")];
-    const removed = await removeDroppedFiles(previous, next);
-    if (removed) return removed;
-  }
   await db
     .update(posts)
     .set({
@@ -335,7 +341,13 @@ export async function updatePostAs(
       content: input.content,
     })
     .where(eq(posts.slug, input.slug));
-  return { ok: true, message: "Post saved." };
+  const saved = { ok: true as const, message: "Post saved." };
+  if (!existing) return saved;
+  return removeOldFilesAfterSave(
+    [existing.coverImage, ...existing.content.map((section) => section.image ?? "")],
+    [input.coverImage.trim(), ...input.content.map((section) => section.image ?? "")],
+    saved,
+  );
 }
 
 export async function savePhotoAs(
@@ -354,10 +366,6 @@ export async function savePhotoAs(
   const span = input.span === "tall" || input.span === "wide" || input.span === "large" ? input.span : null;
   if (input.id) {
     const [existing] = await db.select({ src: photos.src }).from(photos).where(eq(photos.id, input.id)).limit(1);
-    if (existing) {
-      const removed = await removeDroppedFiles([existing.src], [input.src.trim()]);
-      if (removed) return removed;
-    }
     await db
       .update(photos)
       .set({
@@ -368,7 +376,8 @@ export async function savePhotoAs(
         homeOnly: input.homeOnly,
       })
       .where(eq(photos.id, input.id));
-    return { ok: true, message: "Photo saved." };
+    const saved = { ok: true as const, message: "Photo saved." };
+    return existing ? removeOldFilesAfterSave([existing.src], [input.src.trim()], saved) : saved;
   }
   const [row] = await db.select({ value: max(photos.id) }).from(photos);
   const id = (row?.value ?? 0) + 1;
@@ -412,10 +421,6 @@ export async function saveReviewAs(
   const rating = input.rating;
   if (input.id) {
     const [existing] = await db.select({ avatar: reviews.avatar }).from(reviews).where(eq(reviews.id, input.id)).limit(1);
-    if (existing) {
-      const removed = await removeDroppedFiles([existing.avatar], [input.avatar.trim()]);
-      if (removed) return removed;
-    }
     await db
       .update(reviews)
       .set({
@@ -426,7 +431,8 @@ export async function saveReviewAs(
         rating,
       })
       .where(eq(reviews.id, input.id));
-    return { ok: true, message: "Review saved." };
+    const saved = { ok: true as const, message: "Review saved." };
+    return existing ? removeOldFilesAfterSave([existing.avatar], [input.avatar.trim()], saved) : saved;
   }
   const [row] = await db.select({ value: max(reviews.id) }).from(reviews);
   await db.insert(reviews).values({
@@ -465,10 +471,6 @@ export async function saveSlideAs(
   }
   if (input.id) {
     const [existing] = await db.select({ image: slides.image }).from(slides).where(eq(slides.id, input.id)).limit(1);
-    if (existing) {
-      const removed = await removeDroppedFiles([existing.image], [input.image.trim()]);
-      if (removed) return removed;
-    }
     await db
       .update(slides)
       .set({
@@ -478,7 +480,8 @@ export async function saveSlideAs(
         sortOrder: input.sortOrder,
       })
       .where(eq(slides.id, input.id));
-    return { ok: true, message: "Slide saved." };
+    const saved = { ok: true as const, message: "Slide saved." };
+    return existing ? removeOldFilesAfterSave([existing.image], [input.image.trim()], saved) : saved;
   }
   const [row] = await db.select({ value: max(slides.id) }).from(slides);
   const id = (row?.value ?? 0) + 1;
