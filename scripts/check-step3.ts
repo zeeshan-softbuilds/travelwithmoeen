@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "fs";
 import path from "path";
 import { spawn } from "child_process";
+import { head, list } from "@vercel/blob";
 import { count, eq, max } from "drizzle-orm";
 import { db, sql } from "../lib/db";
 import { guestRequests, loginFailures, places, posts, reviews, seasons, tourPlaces, tours, users } from "../lib/db/schema";
@@ -848,6 +849,8 @@ async function assertOfficeRequests(savedIds: number[]) {
     await assertOfficeShellLinks(editorCookie, managerCookie, ownerCookie);
     await assertSessionRequestCount(ownerCookie);
     await assertProfitMargin(editorCookie, managerCookie);
+    await assertRefusedSaveCleanup(editorCookie);
+    await assertEmptyOfficeSave(editorCookie);
     const ownerDelete = await officePost("/api/office/requests/delete", deleteForm, ownerCookie);
     if (ownerDelete.status !== 200 || !ownerDelete.body.ok) {
       throw new Error(`An Owner delete returned ${ownerDelete.status}.`);
@@ -970,6 +973,98 @@ async function assertProfitMargin(editorCookie: string, managerCookie: string) {
   }
   const [back] = await db.select({ percent: seasons.percent }).from(seasons).limit(1);
   if (back?.percent !== 20) throw new Error("The profit margin was not put back to 20.");
+}
+
+async function mediaFiles() {
+  const token = process.env.MEDIA_READ_WRITE_TOKEN;
+  if (!token) throw new Error("The T-40 check needs MEDIA_READ_WRITE_TOKEN.");
+  const names = new Set<string>();
+  let cursor: string | undefined;
+  do {
+    const page = await list({ prefix: "media/", token, cursor });
+    for (const blob of page.blobs) names.add(blob.pathname);
+    cursor = page.cursor;
+  } while (cursor);
+  return names;
+}
+
+async function mediaFileExists(url: string) {
+  try {
+    await head(url, { token: process.env.MEDIA_READ_WRITE_TOKEN });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function newTourForm(location: string, files: { photo?: File; pdf?: File }) {
+  const form = new FormData();
+  form.set("name", "T-40 check tour");
+  form.set("location", location);
+  form.set("region", "T-40 Valley");
+  form.set("description", "T-40 check.");
+  form.set("duration", "1");
+  form.set("image", "");
+  form.set("pdf", "");
+  form.set("transport", "By Road");
+  form.set("itinerary", "[]");
+  form.set("galleryImageSet", "1");
+  form.set("placeSet", "1");
+  if (files.photo) form.set("photo", files.photo);
+  if (files.pdf) form.set("pdfFile", files.pdf);
+  return form;
+}
+
+// T-40: a refused save deletes the files it stored. An accepted save keeps them.
+async function assertRefusedSaveCleanup(editorCookie: string) {
+  const jpeg = () => new File([new Uint8Array(JPEG)], "t40.jpg", { type: "image/jpeg" });
+  const before = await mediaFiles();
+  const refusedSaves: [string, string, FormData][] = [
+    ["a tour with no location", "/api/office/tours/create", newTourForm("", { photo: jpeg() })],
+    ["a tour whose PDF is not a PDF", "/api/office/tours/create", newTourForm("T-40 Valley", { photo: jpeg(), pdf: new File([Buffer.from("hello")], "t40.pdf", { type: "application/pdf" }) })],
+  ];
+  const photoForm = new FormData();
+  photoForm.set("alt", "");
+  photoForm.set("category", "private");
+  photoForm.set("photo", jpeg());
+  refusedSaves.push(["a gallery photo with no description", "/api/office/photos", photoForm]);
+  for (const [what, path, form] of refusedSaves) {
+    const refused = await officePost(path, form, editorCookie);
+    if (refused.status !== 400 || refused.body.ok) throw new Error(`Saving ${what} was not refused: ${refused.status}.`);
+  }
+  const after = await mediaFiles();
+  const left = [...after].filter((name) => !before.has(name));
+  if (left.length > 0) throw new Error(`A refused save left ${left.length} file(s) in the media store: ${left.join(", ")}`);
+
+  const accepted = await officePost("/api/office/tours/create", newTourForm("T-40 Valley", { photo: jpeg() }), editorCookie);
+  if (accepted.status !== 200 || !accepted.body.ok) throw new Error(`The accepted T-40 tour was refused: ${accepted.body.error ?? accepted.status}.`);
+  const [tour] = await db.select().from(tours).where(eq(tours.name, "T-40 check tour")).limit(1);
+  try {
+    if (!tour || !tour.image.includes("/media/")) throw new Error("The accepted T-40 tour did not keep its photo.");
+    if (!(await mediaFileExists(tour.image))) throw new Error("The accepted T-40 tour's photo is not in the media store.");
+  } finally {
+    if (tour) {
+      const form = new FormData();
+      form.set("id", tour.id);
+      await officePost("/api/office/tours/delete", form, editorCookie);
+      await db.delete(tours).where(eq(tours.id, tour.id));
+    }
+  }
+}
+
+// T-41: an office save with no body is a 400, not a 500. With no session it is still a 401.
+async function assertEmptyOfficeSave(editorCookie: string) {
+  const empty = await fetch(`${siteBase()}/api/office/tours`, { method: "POST", headers: { cookie: editorCookie } });
+  const emptyBody = (await empty.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+  if (empty.status !== 400 || emptyBody.error !== "Send the form again.") throw new Error(`A signed-in save with no body returned ${empty.status}.`);
+  const notForm = await fetch(`${siteBase()}/api/office/rates`, {
+    method: "POST",
+    headers: { cookie: editorCookie, "content-type": "application/json" },
+    body: JSON.stringify({ kind: "season", percent: "20" }),
+  });
+  if (notForm.status !== 400) throw new Error(`A signed-in save that is not a form returned ${notForm.status}.`);
+  const signedOut = await fetch(`${siteBase()}/api/office/tours`, { method: "POST" });
+  if (signedOut.status !== 401) throw new Error(`A save with no body and no session returned ${signedOut.status}.`);
 }
 
 // T-37b: the session reply carries the sidebar count of new requests, and only with a session.
