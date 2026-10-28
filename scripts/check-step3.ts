@@ -4,7 +4,7 @@ import { spawn } from "child_process";
 import { head, list } from "@vercel/blob";
 import { count, eq, max } from "drizzle-orm";
 import { db, sql } from "../lib/db";
-import { guestRequests, loginFailures, places, posts, reviews, seasons, tourPlaces, tours, users } from "../lib/db/schema";
+import { guestRequests, loginFailures, photos, places, posts, reviews, seasons, tourPlaces, tours, users } from "../lib/db/schema";
 import { inferTourPlaceLinks, linkInferredTourPlaces } from "../lib/office/tour-places";
 import { authenticate } from "../lib/auth/authenticate";
 import { createUserAs, removeUserAs } from "../lib/office/users";
@@ -851,6 +851,7 @@ async function assertOfficeRequests(savedIds: number[]) {
     await assertProfitMargin(editorCookie, managerCookie);
     await assertRefusedSaveCleanup(editorCookie);
     await assertEmptyOfficeSave(editorCookie);
+    await assertOldFileRemovedAfterSave(editorCookie);
     const ownerDelete = await officePost("/api/office/requests/delete", deleteForm, ownerCookie);
     if (ownerDelete.status !== 200 || !ownerDelete.body.ok) {
       throw new Error(`An Owner delete returned ${ownerDelete.status}.`);
@@ -1049,6 +1050,41 @@ async function assertRefusedSaveCleanup(editorCookie: string) {
       await officePost("/api/office/tours/delete", form, editorCookie);
       await db.delete(tours).where(eq(tours.id, tour.id));
     }
+  }
+}
+
+function galleryForm(fields: Record<string, string>, photo?: File) {
+  const form = new FormData();
+  for (const [key, value] of Object.entries(fields)) form.set(key, value);
+  if (photo) form.set("photo", photo);
+  return form;
+}
+
+// T-42: a save deletes the old file only after the new record is written. Replacing a photo still
+// removes the old office file, and a refused save leaves the current file in the record and the store.
+async function assertOldFileRemovedAfterSave(editorCookie: string) {
+  const jpeg = () => new File([new Uint8Array(JPEG)], "t42.jpg", { type: "image/jpeg" });
+  const added = await officePost("/api/office/photos", galleryForm({ alt: "T-42 check photo", category: "private", src: "" }, jpeg()), editorCookie);
+  if (added.status !== 200 || !added.body.ok) throw new Error(`The T-42 photo was not added: ${added.body.error ?? added.status}.`);
+  const [photo] = await db.select().from(photos).where(eq(photos.alt, "T-42 check photo")).limit(1);
+  if (!photo || !photo.src.includes("/media/")) throw new Error("The T-42 photo did not keep its upload.");
+  try {
+    const first = photo.src;
+    const replaced = await officePost("/api/office/photos", galleryForm({ id: String(photo.id), alt: "T-42 check photo", category: "private", src: first }, jpeg()), editorCookie);
+    if (replaced.status !== 200 || !replaced.body.ok) throw new Error(`Replacing the T-42 photo was refused: ${replaced.body.error ?? replaced.status}.`);
+    const [afterReplace] = await db.select({ src: photos.src }).from(photos).where(eq(photos.id, photo.id)).limit(1);
+    if (!afterReplace || afterReplace.src === first) throw new Error("Replacing the T-42 photo did not store the new file.");
+    if (await mediaFileExists(first)) throw new Error("Replacing a photo left the old office file in the media store.");
+    if (!(await mediaFileExists(afterReplace.src))) throw new Error("The replaced photo is not in the media store.");
+
+    const refused = await officePost("/api/office/photos", galleryForm({ id: String(photo.id), alt: "", category: "private", src: afterReplace.src }, jpeg()), editorCookie);
+    if (refused.status !== 400) throw new Error(`A T-42 save with no description returned ${refused.status}.`);
+    const [afterRefused] = await db.select({ src: photos.src }).from(photos).where(eq(photos.id, photo.id)).limit(1);
+    if (afterRefused?.src !== afterReplace.src) throw new Error("A refused save changed the photo the record points at.");
+    if (!(await mediaFileExists(afterReplace.src))) throw new Error("A refused save removed the record's current file.");
+  } finally {
+    await officePost("/api/office/photos/delete", galleryForm({ id: String(photo.id) }), editorCookie);
+    await db.delete(photos).where(eq(photos.id, photo.id));
   }
 }
 
