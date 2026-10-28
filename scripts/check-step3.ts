@@ -852,6 +852,7 @@ async function assertOfficeRequests(savedIds: number[]) {
     await assertRefusedSaveCleanup(editorCookie);
     await assertEmptyOfficeSave(editorCookie);
     await assertOldFileRemovedAfterSave(editorCookie);
+    await assertDeleteRemovesRecordAndFile(editorCookie);
     const ownerDelete = await officePost("/api/office/requests/delete", deleteForm, ownerCookie);
     if (ownerDelete.status !== 200 || !ownerDelete.body.ok) {
       throw new Error(`An Owner delete returned ${ownerDelete.status}.`);
@@ -1086,6 +1087,42 @@ async function assertOldFileRemovedAfterSave(editorCookie: string) {
     await officePost("/api/office/photos/delete", galleryForm({ id: String(photo.id) }), editorCookie);
     await db.delete(photos).where(eq(photos.id, photo.id));
   }
+}
+
+// T-43: a delete removes the record, then its office file, and leaves nothing in the media store.
+async function assertDeleteRemovesRecordAndFile(editorCookie: string) {
+  const jpeg = () => new File([new Uint8Array(JPEG)], "t43.jpg", { type: "image/jpeg" });
+  const before = await mediaFiles();
+
+  const added = await officePost("/api/office/photos", galleryForm({ alt: "T-43 check photo", category: "private", src: "" }, jpeg()), editorCookie);
+  if (added.status !== 200 || !added.body.ok) throw new Error(`The T-43 photo was not added: ${added.body.error ?? added.status}.`);
+  const [photo] = await db.select().from(photos).where(eq(photos.alt, "T-43 check photo")).limit(1);
+  if (!photo || !(await mediaFileExists(photo.src))) throw new Error("The T-43 photo is not in the media store.");
+  const photoDeleted = await officePost("/api/office/photos/delete", galleryForm({ id: String(photo.id) }), editorCookie);
+  if (photoDeleted.status !== 200 || !photoDeleted.body.ok) throw new Error(`Deleting the T-43 photo was refused: ${photoDeleted.body.error ?? photoDeleted.status}.`);
+  const [photoLeft] = await db.select({ id: photos.id }).from(photos).where(eq(photos.id, photo.id)).limit(1);
+  if (photoLeft) throw new Error("Deleting a gallery photo left its record.");
+  if (await mediaFileExists(photo.src)) throw new Error("Deleting a gallery photo left its office file.");
+
+  const tourAdded = await officePost("/api/office/tours/create", newTourForm("T-43 Valley", { photo: jpeg() }), editorCookie);
+  if (tourAdded.status !== 200 || !tourAdded.body.ok) throw new Error(`The T-43 tour was not added: ${tourAdded.body.error ?? tourAdded.status}.`);
+  const [tour] = await db.select().from(tours).where(eq(tours.location, "T-43 Valley")).limit(1);
+  try {
+    if (!tour || !(await mediaFileExists(tour.image))) throw new Error("The T-43 tour's photo is not in the media store.");
+    const tourForm = new FormData();
+    tourForm.set("id", tour.id);
+    const tourDeleted = await officePost("/api/office/tours/delete", tourForm, editorCookie);
+    if (tourDeleted.status !== 200 || !tourDeleted.body.ok) throw new Error(`Deleting the T-43 tour was refused: ${tourDeleted.body.error ?? tourDeleted.status}.`);
+    const [tourLeft] = await db.select({ id: tours.id }).from(tours).where(eq(tours.id, tour.id)).limit(1);
+    if (tourLeft) throw new Error("Deleting a tour left its record.");
+    if (await mediaFileExists(tour.image)) throw new Error("Deleting a tour left its office photo.");
+  } finally {
+    if (tour) await db.delete(tours).where(eq(tours.id, tour.id));
+  }
+
+  const after = await mediaFiles();
+  const left = [...after].filter((name) => !before.has(name));
+  if (left.length > 0) throw new Error(`The T-43 deletes left ${left.length} file(s) in the media store.`);
 }
 
 // T-41: an office save with no body is a 400, not a 500. With no session it is still a 401.
