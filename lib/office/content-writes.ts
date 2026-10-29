@@ -236,12 +236,8 @@ export async function deleteTourAs(actor: SessionUser, tourId: string): Promise<
     .from(tours)
     .where(eq(tours.id, tourId))
     .limit(1);
-  // The tour and the rows that belong to it go together, or not at all.
-  await db.transaction(async (tx) => {
-    await tx.delete(tourDays).where(eq(tourDays.tourId, tourId));
-    await tx.delete(tourPlaces).where(eq(tourPlaces.tourId, tourId));
-    await tx.delete(tours).where(eq(tours.id, tourId));
-  });
+  // tour_days and tour_places cascade on tours.id, so the day plan and place links go with this one delete.
+  await db.delete(tours).where(eq(tours.id, tourId));
   const deleted = { ok: true as const, message: "Tour deleted." };
   return existing ? removeOldFilesAfter([existing.image, existing.pdf, ...existing.galleryImages], [], deleted) : deleted;
 }

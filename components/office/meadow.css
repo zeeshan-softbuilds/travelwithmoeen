@@ -501,6 +501,19 @@
   .office .tbl tr.is-error td { box-shadow: inset 0 calc(var(--border-w) * -1) 0 var(--danger); }
   .office .tbl tr.is-error td:first-child { box-shadow: inset var(--border-w-xl) 0 0 var(--danger); }
 
+  /* ---------- Quote ---------- */
+  .office .quote-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(min(100%, calc(var(--space-24) * 2 + var(--space-20) + var(--space-2))), calc(var(--space-20) * 4 + var(--space-10))); gap: var(--stack); align-items: start; }
+  .office .quote-side { display: flex; flex-direction: column; gap: var(--stack); min-width: 0; }
+  .office .quote-side > * { margin-block: 0; min-width: 0; }
+  .office .quote-result { position: sticky; top: calc(var(--topbar-h) + var(--space-4)); }
+  .office .sum { display: grid; grid-template-columns: 1fr auto; row-gap: var(--space-2); margin: 0; font-variant-numeric: tabular-nums; }
+  .office .sum dt { color: var(--text-2); }
+  .office .sum dd { margin: 0; padding-left: var(--space-4); text-align: right; }
+  .office .sum .sum-total { font: 600 var(--text-xl)/var(--leading-snug) var(--font); color: var(--text); border-top: var(--border-w) solid var(--border); padding-top: var(--space-2); }
+  .office .sum .sum-sub { border-top: var(--border-w) solid var(--border); padding-top: var(--space-2); }
+  .office .quote-checks { display: flex; flex-wrap: wrap; gap: var(--space-5); align-items: center; }
+  .office .tbl tr.is-edited td { background: var(--warning-soft); }
+
   /* ---------- Wide screens ---------- */
   @media (max-width: 1100px) {
     .office .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -522,6 +535,8 @@
     .office .inbox:not(.has-detail) .inbox-detail { display: none; }
     .office .inbox-detail { position: static; }
     .office .inbox-list { max-height: none; }
+    .office .quote-form { grid-template-columns: 1fr; }
+    .office .quote-result { position: static; }
   }
 
   /* ---------- Phone ---------- */
