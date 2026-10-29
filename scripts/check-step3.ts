@@ -4,7 +4,7 @@ import { spawn } from "child_process";
 import { head, list } from "@vercel/blob";
 import { count, eq, max } from "drizzle-orm";
 import { db, sql } from "../lib/db";
-import { guestRequests, loginFailures, photos, places, posts, reviews, seasons, tourPlaces, tours, users } from "../lib/db/schema";
+import { guestRequests, loginFailures, photos, places, posts, quoteDays, quoteExtras, quoteNights, quotes, reviews, seasons, tourPlaces, tours, users } from "../lib/db/schema";
 import { inferTourPlaceLinks, linkInferredTourPlaces } from "../lib/office/tour-places";
 import { authenticate } from "../lib/auth/authenticate";
 import { createUserAs, removeUserAs } from "../lib/office/users";
@@ -849,6 +849,7 @@ async function assertOfficeRequests(savedIds: number[]) {
     await assertOfficeShellLinks(editorCookie, managerCookie, ownerCookie);
     await assertSessionRequestCount(ownerCookie);
     await assertProfitMargin(editorCookie, managerCookie);
+    await assertQuoteEditsThroughRoutes(managerCookie);
     await assertRefusedSaveCleanup(editorCookie);
     await assertEmptyOfficeSave(editorCookie);
     await assertOldFileRemovedAfterSave(editorCookie);
@@ -931,6 +932,95 @@ async function skarduQuote(cookie: string) {
     body: JSON.stringify(SKARDU_QUOTE),
   });
   return (await response.json()) as { ok?: boolean; subtotal?: number; profit?: number; total?: number; seasonPercent?: number };
+}
+
+type QuoteReply = {
+  ok?: boolean;
+  error?: string;
+  total?: number;
+  subtotal?: number;
+  profit?: number;
+  averageNightly?: number;
+  lines?: { label: string; amount: number }[];
+  nights?: { night: number; rate: number }[];
+  days?: { day: number; rent: number; fuel: number; toll: number; cleared: boolean }[];
+};
+
+async function quoteReply(extra: Record<string, unknown>, cookie: string) {
+  const response = await fetch(`${siteBase()}/api/quote`, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...(cookie ? { cookie } : {}) },
+    body: JSON.stringify({ ...SKARDU_QUOTE, ...extra }),
+  });
+  return (await response.json()) as QuoteReply;
+}
+
+// T-37g: the Quote screen prices through POST /api/quote and saves through POST /api/office/rates.
+// Through those routes, a night-two edit changes only that night and the average, clearing one day
+// removes only that day's rent, and a guest still sees one total.
+async function assertQuoteEditsThroughRoutes(managerCookie: string) {
+  const base = await quoteReply({}, managerCookie);
+  if (!base.ok || !base.nights || !base.days || base.nights.length < 2) throw new Error("The T-37g base quote has no nights.");
+
+  const night = await quoteReply({ nightEdits: [{ night: 2, rate: 20000 }] }, managerCookie);
+  const otherNights = night.nights?.filter((row) => row.night !== 2) ?? [];
+  const expectedAverage = (base.nights.reduce((sum, row) => sum + row.rate, 0) - base.nights[1].rate + 20000) / base.nights.length;
+  if (
+    !night.ok ||
+    night.nights?.[1]?.rate !== 20000 ||
+    otherNights.some((row) => row.rate !== base.nights?.find((b) => b.night === row.night)?.rate) ||
+    night.averageNightly !== expectedAverage
+  ) {
+    throw new Error("Through /api/quote, a night-two edit changed another night or not the average.");
+  }
+
+  const cleared = await quoteReply({ dayEdits: [{ day: 1, cleared: true }] }, managerCookie);
+  const dayOne = base.days[0];
+  const otherDays = cleared.days?.filter((row) => row.day !== 1) ?? [];
+  if (
+    !cleared.ok ||
+    !cleared.days?.[0]?.cleared ||
+    cleared.days[0].rent !== 0 ||
+    otherDays.some((row) => row.rent !== base.days?.find((b) => b.day === row.day)?.rent) ||
+    cleared.days[0].fuel !== 0 ||
+    // The toll is counted once for the trip, so clearing a day removes its rent and fuel.
+    (base.subtotal ?? 0) - (cleared.subtotal ?? 0) !== dayOne.rent + dayOne.fuel
+  ) {
+    throw new Error("Through /api/quote, clearing day one did not remove only that day's rent.");
+  }
+
+  const guest = await quoteReply({ nightEdits: [{ night: 2, rate: 20000 }] }, "");
+  if (!guest.ok || guest.total !== base.total || guest.lines !== undefined || guest.profit !== undefined || guest.nights !== undefined) {
+    throw new Error("A guest quote did not show one total only.");
+  }
+
+  const [before] = await db.select({ value: max(quotes.id) }).from(quotes);
+  const form = new FormData();
+  for (const [key, value] of Object.entries({ kind: "quote", ...SKARDU_QUOTE, night: "2", nightRate: "20000", seasonPercent: "" })) {
+    if (typeof value === "boolean") {
+      if (value) form.set(key, "on");
+    } else {
+      form.set(key, String(value));
+    }
+  }
+  const saved = await officePost("/api/office/rates", form, managerCookie);
+  const [afterRow] = await db.select({ value: max(quotes.id) }).from(quotes);
+  const savedId = afterRow?.value && afterRow.value !== before?.value ? afterRow.value : null;
+  try {
+    if (saved.status !== 200 || !saved.body.ok || !savedId) throw new Error(`The office quote save was refused: ${saved.body.error ?? saved.status}.`);
+    const nights = await db.select().from(quoteNights).where(eq(quoteNights.quoteId, savedId));
+    const two = nights.find((row) => row.night === 2);
+    if (two?.rate !== 20000 || nights.some((row) => row.night !== 2 && row.rate !== base.nights?.find((b) => b.night === row.night)?.rate)) {
+      throw new Error("The saved quote did not keep the night-two edit alone.");
+    }
+  } finally {
+    if (savedId) {
+      await db.delete(quoteNights).where(eq(quoteNights.quoteId, savedId));
+      await db.delete(quoteDays).where(eq(quoteDays.quoteId, savedId));
+      await db.delete(quoteExtras).where(eq(quoteExtras.quoteId, savedId));
+      await db.delete(quotes).where(eq(quotes.id, savedId));
+    }
+  }
 }
 
 function marginForm(percent: string) {
@@ -1097,12 +1187,16 @@ async function assertDeleteRemovesRecordAndFile(editorCookie: string) {
   const added = await officePost("/api/office/photos", galleryForm({ alt: "T-43 check photo", category: "private", src: "" }, jpeg()), editorCookie);
   if (added.status !== 200 || !added.body.ok) throw new Error(`The T-43 photo was not added: ${added.body.error ?? added.status}.`);
   const [photo] = await db.select().from(photos).where(eq(photos.alt, "T-43 check photo")).limit(1);
-  if (!photo || !(await mediaFileExists(photo.src))) throw new Error("The T-43 photo is not in the media store.");
-  const photoDeleted = await officePost("/api/office/photos/delete", galleryForm({ id: String(photo.id) }), editorCookie);
-  if (photoDeleted.status !== 200 || !photoDeleted.body.ok) throw new Error(`Deleting the T-43 photo was refused: ${photoDeleted.body.error ?? photoDeleted.status}.`);
-  const [photoLeft] = await db.select({ id: photos.id }).from(photos).where(eq(photos.id, photo.id)).limit(1);
-  if (photoLeft) throw new Error("Deleting a gallery photo left its record.");
-  if (await mediaFileExists(photo.src)) throw new Error("Deleting a gallery photo left its office file.");
+  try {
+    if (!photo || !(await mediaFileExists(photo.src))) throw new Error("The T-43 photo is not in the media store.");
+    const photoDeleted = await officePost("/api/office/photos/delete", galleryForm({ id: String(photo.id) }), editorCookie);
+    if (photoDeleted.status !== 200 || !photoDeleted.body.ok) throw new Error(`Deleting the T-43 photo was refused: ${photoDeleted.body.error ?? photoDeleted.status}.`);
+    const [photoLeft] = await db.select({ id: photos.id }).from(photos).where(eq(photos.id, photo.id)).limit(1);
+    if (photoLeft) throw new Error("Deleting a gallery photo left its record.");
+    if (await mediaFileExists(photo.src)) throw new Error("Deleting a gallery photo left its office file.");
+  } finally {
+    await db.delete(photos).where(eq(photos.alt, "T-43 check photo"));
+  }
 
   const tourAdded = await officePost("/api/office/tours/create", newTourForm("T-43 Valley", { photo: jpeg() }), editorCookie);
   if (tourAdded.status !== 200 || !tourAdded.body.ok) throw new Error(`The T-43 tour was not added: ${tourAdded.body.error ?? tourAdded.status}.`);
