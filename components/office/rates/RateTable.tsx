@@ -7,6 +7,7 @@ import { Button } from "@/components/office/ui/Button";
 import { EmptyState } from "@/components/office/ui/EmptyState";
 import { Icon } from "@/components/office/ui/Icon";
 import { Table } from "@/components/office/ui/Table";
+import type { SavedCell } from "@/components/office/activity";
 import { postOfficeForm } from "@/lib/http/office-client";
 
 export type RateColumn = {
@@ -29,6 +30,8 @@ type RateTableProps = {
   searchLabel?: string;
   // The columns that name a row in labels and messages, such as place, start city, and grade.
   nameKeys: string[];
+  // "Saved by" for each row id that has been saved in the office (BR-86).
+  savedBy?: Record<string, SavedCell>;
 };
 
 type Draft = Record<number, Record<string, string | boolean>>;
@@ -38,9 +41,22 @@ function asDraftValue(value: string | number | boolean) {
   return typeof value === "boolean" ? value : String(value);
 }
 
+// Under the row name, so the table keeps its width: "Saved 5 minutes ago by manager".
+function SavedLine({ saved }: { saved?: SavedCell }) {
+  if (!saved) return null;
+  return (
+    <small className="saved-line" title={saved.full}>
+      <span aria-hidden="true">
+        Saved {saved.when} by {saved.who}
+      </span>
+      <span className="sr-only">{saved.full}</span>
+    </small>
+  );
+}
+
 // The prototype rate table: every row editable, one save bar. Save sends each changed row as its
 // own POST /api/office/rates with the fields the server reads, and the server checks every amount.
-export function RateTable({ kind, noun, columns, rows, filters = [], searchLabel = `Search ${noun}`, nameKeys }: RateTableProps) {
+export function RateTable({ kind, noun, columns, rows, filters = [], searchLabel = `Search ${noun}`, nameKeys, savedBy = {} }: RateTableProps) {
   const rowName = (row: RateRow) => nameKeys.map((key) => String(row.values[key])).join(", ");
   const router = useRouter();
   const [draft, setDraft] = useState<Draft>({});
@@ -194,7 +210,14 @@ export function RateTable({ kind, noun, columns, rows, filters = [], searchLabel
                     return (
                       <td key={column.key} data-label={index === 0 ? undefined : column.label} className={cellClass}>
                         {column.type === "text" ? (
-                          index === 0 ? <b>{String(value)}</b> : String(value)
+                          index === 0 ? (
+                            <>
+                              <b>{String(value)}</b>
+                              <SavedLine saved={savedBy[String(row.id)]} />
+                            </>
+                          ) : (
+                            String(value)
+                          )
                         ) : column.type === "switch" ? (
                           <label className="switch">
                             <input type="checkbox" role="switch" aria-label={label} checked={value === true} disabled={pending} onChange={(event) => edit(row.id, column.key, event.target.checked)} />

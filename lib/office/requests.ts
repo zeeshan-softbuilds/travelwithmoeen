@@ -4,8 +4,10 @@ import { guestRequests } from "@/lib/db/schema";
 import { canDeleteRequest, canUpdateRequestStatus } from "@/lib/auth/permissions";
 import type { SessionUser } from "@/lib/auth/session";
 import { forbidden, type ActionResult } from "@/lib/http/result";
+import { recordActivity } from "@/lib/office/activity";
 
 const REQUEST_STATUSES = ["new", "in_progress", "closed"] as const;
+const STATUS_NAME = { new: "New", in_progress: "In progress", closed: "Closed" } as const;
 
 export type RequestStatus = (typeof REQUEST_STATUSES)[number];
 
@@ -65,6 +67,8 @@ export async function updateRequestStatusAs(actor: SessionUser, id: number, stat
   const [row] = await db.select({ id: guestRequests.id }).from(guestRequests).where(eq(guestRequests.id, id)).limit(1);
   if (!row) return { ok: false, error: "That request was not found." };
   await db.update(guestRequests).set({ status }).where(eq(guestRequests.id, id));
+  // The request number only. A row never holds the guest's name, phone, or message.
+  await recordActivity(db, actor, { kind: "request", recordId: id, text: `Moved request ${id} to ${STATUS_NAME[status]}` });
   return { ok: true, message: "Status saved." };
 }
 
@@ -75,6 +79,7 @@ export async function deleteRequestAs(actor: SessionUser, id: number): Promise<A
   const [row] = await db.select({ id: guestRequests.id }).from(guestRequests).where(eq(guestRequests.id, id)).limit(1);
   if (!row) return { ok: false, error: "That request was not found." };
   await db.delete(guestRequests).where(eq(guestRequests.id, id));
+  await recordActivity(db, actor, { kind: "request", recordId: id, text: `Deleted request ${id}` });
   return { ok: true, message: "Request deleted." };
 }
 

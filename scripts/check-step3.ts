@@ -2,13 +2,14 @@ import { existsSync, readFileSync } from "fs";
 import path from "path";
 import { spawn } from "child_process";
 import { head, list } from "@vercel/blob";
-import { count, eq, max } from "drizzle-orm";
+import { count, eq, gt, like, max } from "drizzle-orm";
 import { db, sql } from "../lib/db";
-import { guestRequests, loginFailures, photos, places, posts, quoteDays, quoteExtras, quoteNights, quotes, reviews, seasons, tourPlaces, tours, users } from "../lib/db/schema";
+import { activity, guestRequests, loginFailures, photos, places, posts, quoteDays, quoteExtras, quoteNights, quotes, reviews, seasons, tourPlaces, tours, users } from "../lib/db/schema";
 import { inferTourPlaceLinks, linkInferredTourPlaces } from "../lib/office/tour-places";
 import { authenticate } from "../lib/auth/authenticate";
 import { createUserAs, removeUserAs } from "../lib/office/users";
 import { officeMediaPath } from "../lib/office/media";
+import { BACKUP_TABLES } from "../lib/office/backup";
 import { GUEST_EMAIL_LIMIT, GUEST_MESSAGE_LIMIT, GUEST_NAME_LIMIT, GUEST_PHONE_LIMIT } from "../lib/requests";
 
 const EDITOR_EMAIL = "editor-step3-requests@travelwithmoeen.test";
@@ -854,6 +855,7 @@ async function assertOfficeRequests(savedIds: number[]) {
     await assertEmptyOfficeSave(editorCookie);
     await assertOldFileRemovedAfterSave(editorCookie);
     await assertDeleteRemovesRecordAndFile(editorCookie);
+    await assertActivity(editorCookie, managerCookie, ownerCookie, { id: saved.body.id, phone, message });
     const ownerDelete = await officePost("/api/office/requests/delete", deleteForm, ownerCookie);
     if (ownerDelete.status !== 200 || !ownerDelete.body.ok) {
       throw new Error(`An Owner delete returned ${ownerDelete.status}.`);
@@ -1219,6 +1221,181 @@ async function assertDeleteRemovesRecordAndFile(editorCookie: string) {
   if (left.length > 0) throw new Error(`The T-43 deletes left ${left.length} file(s) in the media store.`);
 }
 
+type ActivityReplyRow = { id: number; at: string; userEmail: string; area: string; kind: string; recordId: string; text: string };
+
+async function activityGet(query: string, cookie: string) {
+  const response = await fetch(`${siteBase()}/api/office/activity${query}`, { headers: cookie ? { cookie } : {} });
+  const body = (await response.json().catch(() => ({}))) as { ok?: boolean; rows?: ActivityReplyRow[] };
+  return { status: response.status, rows: body.rows ?? [] };
+}
+
+async function activityCount() {
+  const [row] = await db.select({ total: count() }).from(activity);
+  return row?.total ?? 0;
+}
+
+async function officePage(pathname: string, cookie: string) {
+  const response = await fetch(`${siteBase()}${pathname}`, { headers: { cookie }, redirect: "manual" });
+  return { status: response.status, html: await response.text() };
+}
+
+// T-37k (BR-86): each office save writes one activity row, and a person reads only the rows for
+// areas their role can open.
+async function assertActivity(editorCookie: string, managerCookie: string, ownerCookie: string, request: { id: number; phone: string; message: string }) {
+  const signedOut = await activityGet("", "");
+  if (signedOut.status !== 401) throw new Error(`An activity read with no cookie returned ${signedOut.status}.`);
+
+  // An Editor saves a tour, and the dashboard and the tour screen show who saved it and when.
+  const [shipped] = await db.select({ image: tours.image }).from(tours).where(like(tours.image, "/images/%")).limit(1);
+  if (!shipped) throw new Error("No tour has a shipped photo for the T-37k tour.");
+  const addForm = newTourForm("T-37k Valley", {});
+  addForm.set("name", "T-37k check tour");
+  addForm.set("image", shipped.image);
+  const added = await officePost("/api/office/tours/create", addForm, editorCookie);
+  if (added.status !== 200 || !added.body.ok) throw new Error(`The T-37k tour was not added: ${added.body.error ?? added.status}.`);
+  const [tour] = await db.select().from(tours).where(eq(tours.location, "T-37k Valley")).limit(1);
+  try {
+    if (!tour) throw new Error("The T-37k tour is not in the database.");
+    const savedAt = Date.now();
+    const saved = await officePost("/api/office/tours", tourForm(tour), editorCookie);
+    if (saved.status !== 200 || !saved.body.ok) throw new Error(`The Editor could not save the T-37k tour: ${saved.body.error ?? saved.status}.`);
+    const feed = await activityGet("?limit=20", editorCookie);
+    const row = feed.rows.find((item) => item.kind === "tour" && item.recordId === tour.id && item.text === "Saved tour T-37k check tour");
+    if (feed.status !== 200 || !row || row.userEmail !== EDITOR_EMAIL || row.area !== "content") {
+      throw new Error("The Editor's tour save is not in the activity feed with the Editor's login.");
+    }
+    if (Math.abs(Date.parse(row.at) - savedAt) > 60_000) throw new Error("The tour save's activity time is not the time of the save.");
+    const addedRow = feed.rows.find((item) => item.kind === "tour" && item.recordId === tour.id && item.text === "Added tour T-37k check tour");
+    if (!addedRow || addedRow.id >= row.id) throw new Error("Adding the T-37k tour did not write its own activity row first.");
+    const screen = await activityGet(`?kind=tour&record=${encodeURIComponent(tour.id)}`, editorCookie);
+    if (screen.status !== 200 || screen.rows.length !== 1 || screen.rows[0].id !== row.id) {
+      throw new Error("Saved by for the T-37k tour is not its newest save.");
+    }
+    const dashboard = await officePage("/office", editorCookie);
+    if (dashboard.status !== 200 || !dashboard.html.includes("Saved tour T-37k check tour") || !dashboard.html.includes(EDITOR_EMAIL)) {
+      throw new Error("The dashboard does not show the Editor's tour save.");
+    }
+    const tourScreen = await officePage(`/office/tours/${encodeURIComponent(tour.id)}`, editorCookie);
+    if (tourScreen.status !== 200 || !tourScreen.html.includes(`by ${EDITOR_EMAIL}`) || !tourScreen.html.includes("Last saved")) {
+      throw new Error("The tour screen does not show who saved the T-37k tour.");
+    }
+  } finally {
+    if (tour) await db.delete(tours).where(eq(tours.id, tour.id));
+  }
+
+  // A Manager reads rate and request rows and no content rows. An Editor reads no rate rows.
+  const [season] = await db.select({ percent: seasons.percent }).from(seasons).limit(1);
+  const marginForm = new FormData();
+  marginForm.set("kind", "season");
+  marginForm.set("percent", String(season?.percent ?? 20));
+  const marginSaved = await officePost("/api/office/rates", marginForm, managerCookie);
+  if (marginSaved.status !== 200) throw new Error(`The Manager's margin save returned ${marginSaved.status}.`);
+  const managerFeed = await activityGet("?limit=100", managerCookie);
+  if (managerFeed.status !== 200 || managerFeed.rows.some((item) => item.area !== "rates" && item.area !== "requests")) {
+    throw new Error("A Manager received activity rows outside rates and requests.");
+  }
+  if (!managerFeed.rows.some((item) => item.kind === "margin" && item.userEmail === MANAGER_EMAIL)) {
+    throw new Error("The Manager's margin save is not in the Manager's activity feed.");
+  }
+  const requestText = `Moved request ${request.id} to In progress`;
+  for (const cookie of [managerCookie, editorCookie]) {
+    const requestRows = await activityGet(`?kind=request&record=${request.id}`, cookie);
+    if (requestRows.status !== 200 || requestRows.rows[0]?.text !== requestText || requestRows.rows[0]?.userEmail !== MANAGER_EMAIL) {
+      throw new Error("The request status change is not readable as a request row.");
+    }
+  }
+  const managerTours = await activityGet("?kind=tour", managerCookie);
+  if (managerTours.status !== 403 || managerTours.rows.length) throw new Error(`A Manager content activity read returned ${managerTours.status}.`);
+  const editorFeed = await activityGet("?limit=100", editorCookie);
+  if (editorFeed.status !== 200 || editorFeed.rows.some((item) => item.area !== "content" && item.area !== "requests")) {
+    throw new Error("An Editor received activity rows outside content and requests.");
+  }
+  for (const kind of ["margin", "hotel_rate", "quote", "user", "backup"]) {
+    const refused = await activityGet(`?kind=${kind}`, editorCookie);
+    if (refused.status !== 403 || refused.rows.length) throw new Error(`An Editor ${kind} activity read returned ${refused.status}.`);
+  }
+  for (const kind of ["user", "backup"]) {
+    const refused = await activityGet(`?kind=${kind}`, managerCookie);
+    if (refused.status !== 403) throw new Error(`A Manager ${kind} activity read returned ${refused.status}.`);
+  }
+  const ownerUsers = await activityGet("?kind=user", ownerCookie);
+  if (ownerUsers.status !== 200 || !ownerUsers.rows.some((item) => item.text === `Created a login for ${EDITOR_EMAIL} as Editor`)) {
+    throw new Error("The Owner cannot read the login rows.");
+  }
+  const badKind = await activityGet("?kind=password", ownerCookie);
+  if (badKind.status !== 400) throw new Error(`An unknown activity kind returned ${badKind.status}.`);
+
+  // A failed or refused save writes no row.
+  const before = await activityCount();
+  const refusedSaves: [string, FormData, string][] = [];
+  const editorMargin = new FormData();
+  editorMargin.set("kind", "season");
+  editorMargin.set("percent", "30");
+  refusedSaves.push(["/api/office/rates", editorMargin, editorCookie]);
+  const badMargin = new FormData();
+  badMargin.set("kind", "season");
+  badMargin.set("percent", "101");
+  refusedSaves.push(["/api/office/rates", badMargin, managerCookie]);
+  const noLocation = newTourForm("", {});
+  noLocation.set("image", shipped.image);
+  refusedSaves.push(["/api/office/tours/create", noLocation, editorCookie]);
+  refusedSaves.push(["/api/office/tours/create", addForm, managerCookie]);
+  const editorStatus = new FormData();
+  editorStatus.set("id", String(request.id));
+  editorStatus.set("status", "closed");
+  refusedSaves.push(["/api/office/requests/status", editorStatus, editorCookie]);
+  const badStatus = new FormData();
+  badStatus.set("id", String(request.id));
+  badStatus.set("status", "done");
+  refusedSaves.push(["/api/office/requests/status", badStatus, managerCookie]);
+  for (const [pathname, form, cookie] of refusedSaves) {
+    const refused = await officePost(pathname, form, cookie);
+    if (refused.status === 200) throw new Error(`A save that should be refused was accepted: ${pathname}.`);
+  }
+  if ((await activityCount()) !== before) throw new Error("A refused save wrote an activity row.");
+
+  // No row holds a password, a token, a secret, or a guest phone or message.
+  const secrets = [
+    EDITOR_PASSWORD,
+    MANAGER_PASSWORD,
+    process.env.OWNER_PASSWORD,
+    process.env.SESSION_SECRET,
+    process.env.MEDIA_READ_WRITE_TOKEN,
+    process.env.BLOB_READ_WRITE_TOKEN,
+    process.env.BACKUP_SECRET,
+    request.phone,
+    request.message,
+    "Office List Guest",
+  ].filter((value): value is string => Boolean(value && value.length >= 6));
+  const everyRow = await db.select().from(activity);
+  for (const row of everyRow) {
+    const stored = `${row.userEmail} ${row.kind} ${row.recordId} ${row.text}`;
+    if (secrets.some((secret) => stored.includes(secret))) throw new Error(`Activity row ${row.id} holds a password, a secret, or guest details.`);
+  }
+
+  // Rows older than 365 days go when a new row is written. A row of 364 days stays.
+  const day = 24 * 60 * 60 * 1000;
+  const old = await db
+    .insert(activity)
+    .values([
+      { at: new Date(Date.now() - 366 * day), userId: 0, userEmail: "t37k@travelwithmoeen.test", area: "rates", kind: "margin", text: "T-37k row of 366 days" },
+      { at: new Date(Date.now() - 364 * day), userId: 0, userEmail: "t37k@travelwithmoeen.test", area: "rates", kind: "margin", text: "T-37k row of 364 days" },
+    ])
+    .returning({ id: activity.id, text: activity.text });
+  try {
+    const pruneSave = await officePost("/api/office/rates", marginForm, managerCookie);
+    if (pruneSave.status !== 200) throw new Error(`The Manager's margin save returned ${pruneSave.status}.`);
+    const left = await db.select({ text: activity.text }).from(activity).where(eq(activity.userEmail, "t37k@travelwithmoeen.test"));
+    if (left.length !== 1 || left[0].text !== "T-37k row of 364 days") throw new Error("Activity rows older than 365 days were not removed, or a newer one was.");
+  } finally {
+    await db.delete(activity).where(eq(activity.userEmail, "t37k@travelwithmoeen.test"));
+  }
+  if (old.length !== 2) throw new Error("The old T-37k activity rows were not written.");
+
+  // A backup and a restore keep the activity table.
+  if (BACKUP_TABLES.at(-1)?.[0] !== "activity") throw new Error("The activity table is not the last backup table.");
+}
+
 // T-41: an office save with no body is a 400, not a 500. With no session it is still a 401.
 async function assertEmptyOfficeSave(editorCookie: string) {
   const empty = await fetch(`${siteBase()}/api/office/tours`, { method: "POST", headers: { cookie: editorCookie } });
@@ -1273,6 +1450,9 @@ function assertBookNowOpensOnClick() {
 }
 
 async function main() {
+  // The checks' own office saves write activity rows. They are removed at the end, with the other
+  // test data, so a run leaves the activity record as it found it.
+  const [activityStart] = await db.select({ id: max(activity.id) }).from(activity);
   await runStep2();
   const marker = `step3-part1-${Date.now()}`;
   const phone = "03009990001";
@@ -1411,6 +1591,7 @@ async function main() {
     for (const id of savedIds) {
       await db.delete(guestRequests).where(eq(guestRequests.id, id));
     }
+    await db.delete(activity).where(gt(activity.id, activityStart?.id ?? 0));
   }
 }
 

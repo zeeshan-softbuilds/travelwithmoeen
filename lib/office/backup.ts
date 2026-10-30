@@ -2,6 +2,7 @@ import { timingSafeEqual } from "crypto";
 import { del, get, list, put } from "@vercel/blob";
 import { db } from "@/lib/db";
 import {
+  activity,
   airExtras,
   guestRequests,
   hotelRates,
@@ -27,6 +28,7 @@ import {
 import { canRunBackup } from "@/lib/auth/permissions";
 import type { SessionUser } from "@/lib/auth/session";
 import { forbidden, type ActionResult } from "@/lib/http/result";
+import { recordActivity } from "@/lib/office/activity";
 
 export const BACKUP_FORMAT = "twm-backup-1";
 const PREFIX = "backups/";
@@ -55,6 +57,7 @@ export const BACKUP_TABLES = [
   ["quote_extras", quoteExtras],
   ["guest_requests", guestRequests],
   ["site_settings", siteSettings],
+  ["activity", activity],
 ] as const;
 
 export type BackupFile = {
@@ -112,7 +115,10 @@ export async function backupAs(actor: SessionUser): Promise<ActionResult> {
   if (!canRunBackup(actor.role)) {
     return forbidden("Only the Owner can run a backup.");
   }
-  return runBackup();
+  const result = await runBackup();
+  // Back up now from the office. The nightly backup has no signed-in login, so it writes no row.
+  if (result.ok) await recordActivity(db, actor, { kind: "backup", text: "Made a backup" });
+  return result;
 }
 
 export async function listBackupsAs(actor: SessionUser) {

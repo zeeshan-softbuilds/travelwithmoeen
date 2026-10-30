@@ -1,8 +1,11 @@
 import { loadRateDesk } from "@/components/office/rates/load-rates";
 import { RateTable } from "@/components/office/rates/RateTable";
+import { savedByCells } from "@/components/office/activity";
+import { requestTime } from "@/components/office/format";
+import { getSavedBy } from "@/lib/http/office-session";
 
 export default async function RatesVehiclesPage() {
-  const desk = await loadRateDesk();
+  const [desk, savedBy] = await Promise.all([loadRateDesk(), getSavedBy("vehicle_rate")]);
   return (
     <RateTable
       kind="vehicle"
@@ -20,6 +23,7 @@ export default async function RatesVehiclesPage() {
         { key: "live", label: "On", type: "switch" },
       ]}
       rows={desk.vehicles.map((row) => ({ id: row.id, values: { place: row.place, startCity: row.startCity, vehicle: row.vehicle, rent: row.rent, fuel: row.fuel, toll: row.toll, seats: row.seats, live: row.live } }))}
+      savedBy={savedByCells(savedBy, requestTime())}
       nameKeys={["place", "startCity", "vehicle"]}
     />
   );

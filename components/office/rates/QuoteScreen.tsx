@@ -266,7 +266,7 @@ export function QuoteScreen({ places, vehicles, margin }: QuoteScreenProps) {
               </div>
               <div className="field">
                 <label className="label" htmlFor="quote-margin-slider">
-                  Slider
+                  Profit margin slider
                 </label>
                 <input
                   className="range"

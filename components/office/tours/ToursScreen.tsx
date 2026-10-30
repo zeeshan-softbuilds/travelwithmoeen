@@ -6,7 +6,9 @@ import { TourForm } from "@/components/office/TourForm";
 import { buttonClass } from "@/components/office/ui/Button";
 import { Icon } from "@/components/office/ui/Icon";
 import { PageHead } from "@/components/office/ui/PageHead";
-import { getOfficeSession } from "@/lib/http/office-session";
+import { savedByText } from "@/components/office/activity";
+import { requestTime } from "@/components/office/format";
+import { getOfficeSession, getSavedBy } from "@/lib/http/office-session";
 import { getPlaces, getTour, getTours } from "@/lib/http/site-content";
 
 // The Tours list, with the editor open over it when openId is set.
@@ -34,6 +36,7 @@ export async function ToursScreen({ openId }: { openId?: string }) {
     };
   });
   const index = open ? tours.findIndex((tour) => tour.id === open.id) : -1;
+  const savedBy = open ? savedByText((await getSavedBy("tour", [open.id]))[open.id], requestTime()) : "";
 
   return (
     <>
@@ -70,6 +73,7 @@ export async function ToursScreen({ openId }: { openId?: string }) {
         <TourForm
           key={open.id}
           tour={open}
+          savedBy={savedBy}
           canDelete={user.canDeleteTour}
           mode="edit"
           places={places.map((place) => ({ slug: place.slug, title: place.title }))}

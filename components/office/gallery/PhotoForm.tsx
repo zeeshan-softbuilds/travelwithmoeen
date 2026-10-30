@@ -13,7 +13,7 @@ import { postOfficeForm } from "@/lib/http/office-client";
 import type { ActionResult } from "@/lib/http/result";
 import type { GalleryImage } from "@/data/gallery";
 
-export function PhotoForm({ photo, frame }: { photo: GalleryImage | null; frame: EditorFrame }) {
+export function PhotoForm({ photo, frame, savedBy }: { photo: GalleryImage | null; frame: EditorFrame; savedBy?: string }) {
   const [src, setSrc] = useState(photo?.src ?? "");
   const [chosenPreview, setChosenPreview] = useState("");
   const [alt, setAlt] = useState(photo?.alt ?? "");
@@ -41,6 +41,7 @@ export function PhotoForm({ photo, frame }: { photo: GalleryImage | null; frame:
       title={photo ? "Edit photo" : "Add a photo"}
       description={photo ? photo.alt : "JPEG, PNG, or WebP up to 5 MB."}
       closeHref={frame.closeHref}
+      savedBy={savedBy}
       previousHref={frame.previousHref}
       nextHref={frame.nextHref}
       position={photo ? frame.position : null}

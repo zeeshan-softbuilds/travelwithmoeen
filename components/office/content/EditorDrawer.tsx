@@ -21,12 +21,14 @@ type EditorDrawerProps = {
   viewHref?: string;
   sections?: { id: string; label: string }[];
   preview?: React.ReactNode;
+  // "Last saved 5 minutes ago by editor@…", from the activity record (BR-86). Empty for a new record.
+  savedBy?: string;
   children: React.ReactNode;
 };
 
 // The editor that slides in over a list: previous and next, View on site, section links, a
 // preview of the website card, and the form. Leaving with unsaved changes asks first.
-export function EditorDrawer({ title, description, badge, closeHref, previousHref, nextHref, position, viewHref, sections, preview, children }: EditorDrawerProps) {
+export function EditorDrawer({ title, description, badge, closeHref, previousHref, nextHref, position, viewHref, sections, preview, savedBy, children }: EditorDrawerProps) {
   const router = useRouter();
   const [dirty, setDirty] = useState(false);
 
@@ -92,6 +94,14 @@ export function EditorDrawer({ title, description, badge, closeHref, previousHre
       title={title}
       description={description}
       badge={badge}
+      meta={
+        savedBy ? (
+          <>
+            <Icon name="clock" />
+            {savedBy}
+          </>
+        ) : null
+      }
       toolbar={toolbar}
       subhead={subhead}
       onClose={() => {

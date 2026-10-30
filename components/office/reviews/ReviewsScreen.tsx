@@ -7,7 +7,9 @@ import { ReviewForm } from "@/components/office/reviews/ReviewForm";
 import { buttonClass } from "@/components/office/ui/Button";
 import { Icon } from "@/components/office/ui/Icon";
 import { PageHead } from "@/components/office/ui/PageHead";
-import { getOfficeSession } from "@/lib/http/office-session";
+import { savedByText } from "@/components/office/activity";
+import { requestTime } from "@/components/office/format";
+import { getOfficeSession, getSavedBy } from "@/lib/http/office-session";
 import { getReviews } from "@/lib/http/site-content";
 
 const LIST = "/office/reviews";
@@ -34,6 +36,7 @@ export async function ReviewsScreen({ edit }: { edit?: string }) {
   }));
   const index = open ? reviews.findIndex((review) => review.id === open.id) : -1;
 
+  const savedBy = open ? savedByText((await getSavedBy("review", [open.id]))[String(open.id)], requestTime()) : "";
   return (
     <>
       <PageHead
@@ -61,7 +64,7 @@ export async function ReviewsScreen({ edit }: { edit?: string }) {
           { value: "rating:asc", label: "Lowest rating" },
         ]}
       />
-      {open || isNew ? <ReviewForm key={edit} review={open} frame={frameFor(reviews, index, LIST, (review) => hrefOf(review.id))} /> : null}
+      {open || isNew ? <ReviewForm key={edit} review={open} savedBy={savedBy} frame={frameFor(reviews, index, LIST, (review) => hrefOf(review.id))} /> : null}
     </>
   );
 }

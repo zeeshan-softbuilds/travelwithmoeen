@@ -22,7 +22,7 @@ const SECTIONS = [
   { id: "place-sections", label: "Sections" },
 ];
 
-export function PlaceForm({ place, frame }: { place: Destination; frame: EditorFrame }) {
+export function PlaceForm({ place, frame, savedBy }: { place: Destination; frame: EditorFrame; savedBy?: string }) {
   const [title, setTitle] = useState(place.title);
   const [excerpt, setExcerpt] = useState(place.excerpt);
   const [location, setLocation] = useState(place.location ?? "");
@@ -58,6 +58,7 @@ export function PlaceForm({ place, frame }: { place: Destination; frame: EditorF
       title={place.title}
       description={place.location}
       closeHref={frame.closeHref}
+      savedBy={savedBy}
       previousHref={frame.previousHref}
       nextHref={frame.nextHref}
       position={frame.position}

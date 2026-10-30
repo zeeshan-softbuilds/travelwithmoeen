@@ -7,7 +7,9 @@ import { PhotoForm } from "@/components/office/gallery/PhotoForm";
 import { buttonClass } from "@/components/office/ui/Button";
 import { Icon } from "@/components/office/ui/Icon";
 import { PageHead } from "@/components/office/ui/PageHead";
-import { getOfficeSession } from "@/lib/http/office-session";
+import { savedByText } from "@/components/office/activity";
+import { requestTime } from "@/components/office/format";
+import { getOfficeSession, getSavedBy } from "@/lib/http/office-session";
 import { getPhotos } from "@/lib/http/site-content";
 
 const LIST = "/office/gallery";
@@ -34,6 +36,7 @@ export async function GalleryScreen({ edit }: { edit?: string }) {
   }));
   const index = open ? photos.findIndex((photo) => photo.id === open.id) : -1;
 
+  const savedBy = open ? savedByText((await getSavedBy("photo", [open.id]))[String(open.id)], requestTime()) : "";
   return (
     <>
       <PageHead
@@ -57,7 +60,7 @@ export async function GalleryScreen({ edit }: { edit?: string }) {
         emptyTitle="No photos yet"
         filters={[{ key: "category", label: "Group", options: [{ value: "", label: "Private and group" }, { value: "private", label: "Private" }, { value: "group", label: "Group" }] }]}
       />
-      {open || isNew ? <PhotoForm key={edit} photo={open} frame={frameFor(photos, index, LIST, (photo) => hrefOf(photo.id))} /> : null}
+      {open || isNew ? <PhotoForm key={edit} photo={open} savedBy={savedBy} frame={frameFor(photos, index, LIST, (photo) => hrefOf(photo.id))} /> : null}
     </>
   );
 }

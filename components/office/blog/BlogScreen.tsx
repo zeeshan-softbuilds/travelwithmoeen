@@ -3,7 +3,9 @@ import { frameFor } from "@/components/office/content/frame";
 import { RecordList, type ListRecord } from "@/components/office/content/RecordList";
 import { PostForm } from "@/components/office/PostForm";
 import { PageHead } from "@/components/office/ui/PageHead";
-import { getOfficeSession } from "@/lib/http/office-session";
+import { savedByText } from "@/components/office/activity";
+import { requestTime } from "@/components/office/format";
+import { getOfficeSession, getSavedBy } from "@/lib/http/office-session";
 import { getPost, getPosts } from "@/lib/http/site-content";
 
 // The Blog list, with the editor open over it when openSlug is set. Adding a post is not in T-37.
@@ -26,6 +28,7 @@ export async function BlogScreen({ openSlug }: { openSlug?: string }) {
   }));
   const index = open ? posts.findIndex((post) => post.slug === open.slug) : -1;
 
+  const savedBy = open ? savedByText((await getSavedBy("post", [open.slug]))[String(open.slug)], requestTime()) : "";
   return (
     <>
       <PageHead title="Blog" description="Travel guides and stories on the website." />
@@ -41,7 +44,7 @@ export async function BlogScreen({ openSlug }: { openSlug?: string }) {
           { value: "name:asc", label: "Title, A to Z" },
         ]}
       />
-      {open ? <PostForm key={open.slug} post={open} frame={frameFor(posts, index, "/office/blog", (post) => hrefOf(post.slug))} /> : null}
+      {open ? <PostForm key={open.slug} post={open} savedBy={savedBy} frame={frameFor(posts, index, "/office/blog", (post) => hrefOf(post.slug))} /> : null}
     </>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useActionState } from "react";
 import { SaveBar } from "@/components/office/content/SaveBar";
 import { Card } from "@/components/office/ui/Card";
@@ -16,7 +17,13 @@ const SOCIAL: { name: keyof SiteSettings; label: string }[] = [
 ];
 
 export function SiteForm({ settings }: { settings: SiteSettings }) {
-  const [state, action, pending] = useActionState(officeFormAction("/api/office/site"), null as ActionResult | null);
+  const router = useRouter();
+  const [state, action, pending] = useActionState(async (previous: ActionResult | null, formData: FormData) => {
+    const result = await officeFormAction("/api/office/site")(previous, formData);
+    // The page reads the saved details and "Last saved" again.
+    if (result.ok) router.refresh();
+    return result;
+  }, null as ActionResult | null);
 
   return (
     <form action={action} className="stack">
