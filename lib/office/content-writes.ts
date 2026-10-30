@@ -383,18 +383,19 @@ export async function savePhotoAs(
     const saved = { ok: true as const, message: "Photo saved." };
     return existing ? removeOldFilesAfter([existing.src], [input.src.trim()], saved) : saved;
   }
-  const [row] = await db.select({ value: max(photos.id) }).from(photos);
-  const id = (row?.value ?? 0) + 1;
+  // The database assigns the id (T-45), so two adds at the same moment do not collide.
   await db.transaction(async (tx) => {
-    await tx.insert(photos).values({
-      id,
-      src: input.src.trim(),
-      alt: input.alt.trim(),
-      category: input.category,
-      span,
-      homeOnly: input.homeOnly,
-    });
-    await recordActivity(tx, actor, { kind: "photo", recordId: id, text: `Added gallery photo ${input.alt.trim()}` });
+    const [added] = await tx
+      .insert(photos)
+      .values({
+        src: input.src.trim(),
+        alt: input.alt.trim(),
+        category: input.category,
+        span,
+        homeOnly: input.homeOnly,
+      })
+      .returning({ id: photos.id });
+    await recordActivity(tx, actor, { kind: "photo", recordId: added?.id, text: `Added gallery photo ${input.alt.trim()}` });
   });
   return { ok: true, message: "Photo added." };
 }
@@ -445,18 +446,18 @@ export async function saveReviewAs(
     const saved = { ok: true as const, message: "Review saved." };
     return existing ? removeOldFilesAfter([existing.avatar], [input.avatar.trim()], saved) : saved;
   }
-  const [row] = await db.select({ value: max(reviews.id) }).from(reviews);
-  const id = (row?.value ?? 0) + 1;
   await db.transaction(async (tx) => {
-    await tx.insert(reviews).values({
-      id,
-      name: input.name.trim(),
-      avatar: input.avatar.trim(),
-      location: input.location.trim(),
-      text: input.text.trim(),
-      rating,
-    });
-    await recordActivity(tx, actor, { kind: "review", recordId: id, text: `Added review from ${input.name.trim()}` });
+    const [added] = await tx
+      .insert(reviews)
+      .values({
+        name: input.name.trim(),
+        avatar: input.avatar.trim(),
+        location: input.location.trim(),
+        text: input.text.trim(),
+        rating,
+      })
+      .returning({ id: reviews.id });
+    await recordActivity(tx, actor, { kind: "review", recordId: added?.id, text: `Added review from ${input.name.trim()}` });
   });
   return { ok: true, message: "Review added." };
 }
@@ -502,17 +503,20 @@ export async function saveSlideAs(
     const saved = { ok: true as const, message: "Slide saved." };
     return existing ? removeOldFilesAfter([existing.image], [input.image.trim()], saved) : saved;
   }
-  const [row] = await db.select({ value: max(slides.id) }).from(slides);
-  const id = (row?.value ?? 0) + 1;
   await db.transaction(async (tx) => {
-    await tx.insert(slides).values({
-      id,
-      image: input.image.trim(),
-      title: input.title.trim(),
-      rotation: input.rotation,
-      sortOrder: input.sortOrder || id,
-    });
-    await recordActivity(tx, actor, { kind: "slide", recordId: id, text: `Added home slide ${input.title.trim()}` });
+    const [added] = await tx
+      .insert(slides)
+      .values({
+        image: input.image.trim(),
+        title: input.title.trim(),
+        rotation: input.rotation,
+        sortOrder: input.sortOrder,
+      })
+      .returning({ id: slides.id });
+    if (!added) return;
+    // A slide with no order joins the end of the row, ordered by its id, as before.
+    if (!input.sortOrder) await tx.update(slides).set({ sortOrder: added.id }).where(eq(slides.id, added.id));
+    await recordActivity(tx, actor, { kind: "slide", recordId: added.id, text: `Added home slide ${input.title.trim()}` });
   });
   return { ok: true, message: "Slide added." };
 }
