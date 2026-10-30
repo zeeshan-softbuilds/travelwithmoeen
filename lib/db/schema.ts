@@ -112,7 +112,7 @@ export const posts = pgTable("posts", {
 });
 
 export const photos = pgTable("photos", {
-  id: integer("id").primaryKey(),
+  id: serial("id").primaryKey(),
   src: text("src").notNull(),
   alt: text("alt").notNull(),
   category: text("category").notNull(),
@@ -121,7 +121,7 @@ export const photos = pgTable("photos", {
 });
 
 export const reviews = pgTable("reviews", {
-  id: integer("id").primaryKey(),
+  id: serial("id").primaryKey(),
   name: text("name").notNull(),
   avatar: text("avatar").notNull(),
   location: text("location").notNull(),
@@ -130,7 +130,7 @@ export const reviews = pgTable("reviews", {
 });
 
 export const slides = pgTable("slides", {
-  id: integer("id").primaryKey(),
+  id: serial("id").primaryKey(),
   image: text("image").notNull(),
   title: text("title").notNull(),
   rotation: integer("rotation").notNull(),

@@ -1,4 +1,4 @@
-import { count } from "drizzle-orm";
+import { count, sql } from "drizzle-orm";
 import { db } from "../lib/db";
 import { photos, places, posts, reviews, siteSettings, slides, tourDays, tourPlaces, tours } from "../lib/db/schema";
 import { ensureTourPlacesTable, linkInferredTourPlaces } from "../lib/office/tour-places";
@@ -131,6 +131,11 @@ async function main() {
   );
 
   await db.insert(slides).values(homeSlides);
+  // Photos, reviews, and slides keep the ids in the data files, so their sequences move on past them,
+  // and the next office add gets a free id (T-45).
+  for (const name of ["photos", "reviews", "slides"]) {
+    await db.execute(sql`select setval(pg_get_serial_sequence(${name}, 'id'), coalesce(max(id), 1), max(id) is not null) from ${sql.identifier(name)}`);
+  }
   await db.insert(siteSettings).values(site);
   const links = await linkInferredTourPlaces();
   console.log(`tour_places inserted: ${links.inserted}; left unlinked: ${links.unlinked.length}`);

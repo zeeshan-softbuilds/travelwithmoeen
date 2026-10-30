@@ -194,8 +194,6 @@ async function assertPlaceBlogReview(editorCookie: string, shipped: string) {
   const postSlug = "office-media-post";
   await db.delete(places).where(eq(places.slug, placeSlug));
   await db.delete(posts).where(eq(posts.slug, postSlug));
-  const [idRow] = await db.select({ value: max(reviews.id) }).from(reviews);
-  const reviewId = (idRow?.value ?? 0) + 1;
   await db.insert(places).values({
     slug: placeSlug,
     title: "Office media place",
@@ -214,14 +212,11 @@ async function assertPlaceBlogReview(editorCookie: string, shipped: string) {
     coverImage: shipped,
     content: [],
   });
-  await db.insert(reviews).values({
-    id: reviewId,
-    name: "Office media review",
-    avatar: "",
-    location: "Check",
-    text: "Office media review stays.",
-    rating: 5,
-  });
+  const [reviewRow] = await db
+    .insert(reviews)
+    .values({ name: "Office media review", avatar: "", location: "Check", text: "Office media review stays.", rating: 5 })
+    .returning({ id: reviews.id });
+  const reviewId = reviewRow.id;
   const uploaded: string[] = [];
   try {
     const placeForm = new FormData();
@@ -859,6 +854,7 @@ async function assertOfficeRequests(savedIds: number[]) {
     await assertOldFileRemovedAfterSave(editorCookie);
     await assertDeleteRemovesRecordAndFile(editorCookie);
     await assertActivity(editorCookie, managerCookie, ownerCookie, { id: saved.body.id, phone, message });
+    await assertParallelPhotoAdds(editorCookie);
     const ownerDelete = await officePost("/api/office/requests/delete", deleteForm, ownerCookie);
     if (ownerDelete.status !== 200 || !ownerDelete.body.ok) {
       throw new Error(`An Owner delete returned ${ownerDelete.status}.`);
@@ -1399,6 +1395,32 @@ async function assertActivity(editorCookie: string, managerCookie: string, owner
   if (BACKUP_TABLES.at(-1)?.[0] !== "activity") throw new Error("The activity table is not the last backup table.");
 }
 
+// T-45: the database assigns a new photo's id, so adds sent at the same moment all save, each with its
+// own id and one activity row.
+async function assertParallelPhotoAdds(editorCookie: string) {
+  const [shipped] = await db.select({ image: tours.image }).from(tours).where(like(tours.image, "/images/%")).limit(1);
+  if (!shipped) throw new Error("No tour has a shipped photo for the T-45 photos.");
+  const alts = [1, 2, 3, 4, 5, 6, 7, 8].map((number) => `T-45 parallel photo ${number}`);
+  try {
+    const replies = await Promise.all(alts.map((alt) => officePost("/api/office/photos", galleryForm({ alt, category: "private", src: shipped.image }), editorCookie)));
+    const refused = replies.filter((reply) => reply.status !== 200 || !reply.body.ok);
+    if (refused.length) throw new Error(`${refused.length} of ${alts.length} gallery photo adds sent at the same time failed (${refused[0].status}).`);
+    const added = await db.select({ id: photos.id, alt: photos.alt }).from(photos).where(like(photos.alt, "T-45 parallel photo %"));
+    if (added.length !== alts.length || new Set(added.map((photo) => photo.id)).size !== alts.length) {
+      throw new Error(`The parallel adds made ${added.length} photos with ${new Set(added.map((photo) => photo.id)).size} distinct ids.`);
+    }
+    const rows = await db.select({ recordId: activity.recordId, text: activity.text }).from(activity).where(like(activity.text, "Added gallery photo T-45 parallel photo %"));
+    for (const photo of added) {
+      const own = rows.filter((row) => row.recordId === String(photo.id));
+      if (own.length !== 1 || own[0].text !== `Added gallery photo ${photo.alt}`) throw new Error(`Photo ${photo.id} does not have exactly one activity row.`);
+    }
+    if (rows.length !== alts.length) throw new Error(`The parallel adds wrote ${rows.length} activity rows for ${alts.length} photos.`);
+  } finally {
+    await db.delete(photos).where(like(photos.alt, "T-45 parallel photo %"));
+    await db.delete(activity).where(like(activity.text, "Added gallery photo T-45 parallel photo %"));
+  }
+}
+
 const RESTORE_COPY = "travelwithmoeen_restore_check";
 
 function runWithDatabase(command: string, args: string[], databaseUrl: string) {
@@ -1446,9 +1468,19 @@ async function assertBackupRestoresIntoCopy() {
       if (inCopy.length !== backedUp.length) throw new Error(`The copy has ${inCopy.length} ${name} rows. The backup has ${backedUp.length}.`);
       if (inCopy.some((row, index) => row !== backedUp[index])) throw new Error(`The restored ${name} rows differ from the backup.`);
     }
-    // A table with a serial id carries on after the restored rows.
-    const [next] = await copySql`select nextval(pg_get_serial_sequence('users', 'id'))::int as id, (select max(id) from users)::int as top`;
-    if (!next || next.id <= next.top) throw new Error("After a restore, a new login would reuse an id.");
+    // Every table with a serial id carries on after the restored rows. Photos, reviews, and slides
+    // have one since T-45.
+    const sequenced: string[] = [];
+    for (const [name] of BACKUP_TABLES) {
+      const [row] = await copySql`select pg_get_serial_sequence(${name}, 'id') as seq`.catch(() => [{ seq: null }]);
+      if (!row?.seq) continue;
+      sequenced.push(name);
+      const [next] = await copySql.unsafe(`select nextval('${row.seq}')::int as id, (select max(id) from ${name})::int as top`);
+      if (next.top !== null && next.id <= next.top) throw new Error(`After a restore, a new ${name} row would reuse an id.`);
+    }
+    if (!["photos", "reviews", "slides", "users"].every((name) => sequenced.includes(name))) {
+      throw new Error(`After a restore, these tables have an id sequence: ${sequenced.join(", ")}.`);
+    }
   } finally {
     await copySql.end({ timeout: 5 });
     await sql.unsafe(`drop database if exists ${RESTORE_COPY} with (force)`);
