@@ -43,16 +43,13 @@ export async function createUserAs(
   if (existing.length > 0) {
     return { ok: false, error: "That email already has a login." };
   }
-  const [created] = await db
-    .insert(users)
-    .values({
-      email,
-      passwordHash: await hashPassword(input.password),
-      role: input.role,
-    })
-    .returning({ id: users.id });
-  // The login's email and role only. Never the password.
-  await recordActivity(db, actor, { kind: "user", recordId: created?.id, text: `Created a login for ${email} as ${ROLE_NAME[input.role]}` });
+  const passwordHash = await hashPassword(input.password);
+  const role = input.role;
+  await db.transaction(async (tx) => {
+    const [created] = await tx.insert(users).values({ email, passwordHash, role }).returning({ id: users.id });
+    // The login's email and role only. Never the password.
+    await recordActivity(tx, actor, { kind: "user", recordId: created?.id, text: `Created a login for ${email} as ${ROLE_NAME[role]}` });
+  });
   return { ok: true, message: "Login created." };
 }
 
@@ -73,8 +70,10 @@ export async function removeUserAs(actor: SessionUser, userId: number): Promise<
       return { ok: false, error: "The last Owner login cannot be removed." };
     }
   }
-  await db.delete(users).where(eq(users.id, userId));
-  await recordActivity(db, actor, { kind: "user", recordId: userId, text: `Removed the login ${target.email}` });
+  await db.transaction(async (tx) => {
+    await tx.delete(users).where(eq(users.id, userId));
+    await recordActivity(tx, actor, { kind: "user", recordId: userId, text: `Removed the login ${target.email}` });
+  });
   return { ok: true, message: "Login removed." };
 }
 
@@ -95,7 +94,10 @@ export async function changeRoleAs(actor: SessionUser, userId: number, role: str
       return { ok: false, error: "The last Owner cannot change to another role." };
     }
   }
-  await db.update(users).set({ role: role as Role }).where(eq(users.id, userId));
-  await recordActivity(db, actor, { kind: "user", recordId: userId, text: `Changed ${target.email} to ${ROLE_NAME[role]}` });
+  const newRole = role;
+  await db.transaction(async (tx) => {
+    await tx.update(users).set({ role: newRole }).where(eq(users.id, userId));
+    await recordActivity(tx, actor, { kind: "user", recordId: userId, text: `Changed ${target.email} to ${ROLE_NAME[newRole]}` });
+  });
   return { ok: true, message: "Role updated." };
 }

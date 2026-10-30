@@ -89,14 +89,20 @@ async function pruneOldBackups() {
   if (old.length > 0) await del(old, { token: process.env.BLOB_READ_WRITE_TOKEN });
 }
 
-export async function runBackup(): Promise<ActionResult> {
-  if (!storageReady()) {
-    return { ok: false, error: "Backup storage is not connected to this deployment." };
-  }
+// Every table in BACKUP_TABLES, as the backup file holds it. check-step3 restores this into a copy.
+export async function readBackupFile(): Promise<BackupFile> {
   const file: BackupFile = { format: BACKUP_FORMAT, createdAt: new Date().toISOString(), tables: {} };
   for (const [name, table] of BACKUP_TABLES) {
     file.tables[name] = await db.select().from(table);
   }
+  return file;
+}
+
+export async function runBackup(): Promise<ActionResult> {
+  if (!storageReady()) {
+    return { ok: false, error: "Backup storage is not connected to this deployment." };
+  }
+  const file = await readBackupFile();
   const stamp = file.createdAt.replace(/[:.]/g, "-");
   const target = process.env.VERCEL_ENV === "production" ? "production" : "preview";
   const name = `${PREFIX}${target}-${stamp}.json`;

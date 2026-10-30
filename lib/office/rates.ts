@@ -41,11 +41,13 @@ export async function saveHotelRateAs(actor: SessionUser, formData: FormData): P
     .where(eq(hotelRates.id, id))
     .limit(1);
   if (!row) return { ok: false, error: "That hotel rate was not found." };
-  await db
-    .update(hotelRates)
-    .set({ twin: twin.amount, triple: triple.amount, hotelName, offered: checked(formData.get("offered")) })
-    .where(eq(hotelRates.id, id));
-  await recordActivity(db, actor, { kind: "hotel_rate", recordId: id, text: `Saved hotel rate ${row.place}, ${row.startCity}, ${row.grade}` });
+  await db.transaction(async (tx) => {
+    await tx
+      .update(hotelRates)
+      .set({ twin: twin.amount, triple: triple.amount, hotelName, offered: checked(formData.get("offered")) })
+      .where(eq(hotelRates.id, id));
+    await recordActivity(tx, actor, { kind: "hotel_rate", recordId: id, text: `Saved hotel rate ${row.place}, ${row.startCity}, ${row.grade}` });
+  });
   return { ok: true, message: "Hotel rate saved." };
 }
 
@@ -67,11 +69,13 @@ export async function saveVehicleRateAs(actor: SessionUser, formData: FormData):
     .limit(1);
   if (!row) return { ok: false, error: "That vehicle rate was not found." };
   const live = checked(formData.get("live")) && !(rent.amount === 0 && fuel.amount === 0 && toll.amount === 0);
-  await db
-    .update(vehicleRates)
-    .set({ rent: rent.amount, fuel: fuel.amount, toll: toll.amount, seats: seats.count, live })
-    .where(eq(vehicleRates.id, id));
-  await recordActivity(db, actor, { kind: "vehicle_rate", recordId: id, text: `Saved vehicle rate ${row.vehicle}, ${row.place} from ${row.startCity}` });
+  await db.transaction(async (tx) => {
+    await tx
+      .update(vehicleRates)
+      .set({ rent: rent.amount, fuel: fuel.amount, toll: toll.amount, seats: seats.count, live })
+      .where(eq(vehicleRates.id, id));
+    await recordActivity(tx, actor, { kind: "vehicle_rate", recordId: id, text: `Saved vehicle rate ${row.vehicle}, ${row.place} from ${row.startCity}` });
+  });
   return { ok: true, message: "Vehicle rate saved." };
 }
 
@@ -94,8 +98,10 @@ export async function saveAirExtraAs(actor: SessionUser, formData: FormData): Pr
   }
   const [row] = await db.select({ id: airExtras.id }).from(airExtras).limit(1);
   if (!row) return { ok: false, error: "The air extras are not loaded." };
-  await db.update(airExtras).set(amounts).where(eq(airExtras.id, row.id));
-  await recordActivity(db, actor, { kind: "air_extra", text: "Saved the air extras" });
+  await db.transaction(async (tx) => {
+    await tx.update(airExtras).set(amounts).where(eq(airExtras.id, row.id));
+    await recordActivity(tx, actor, { kind: "air_extra", text: "Saved the air extras" });
+  });
   return { ok: true, message: "Air extras saved." };
 }
 
@@ -106,8 +112,10 @@ export async function saveJeepLineAs(actor: SessionUser, formData: FormData): Pr
   if (!amount.ok) return amount;
   const [row] = await db.select({ id: jeepLines.id, place: jeepLines.place, label: jeepLines.label }).from(jeepLines).where(eq(jeepLines.id, id)).limit(1);
   if (!row) return { ok: false, error: "That jeep line was not found." };
-  await db.update(jeepLines).set({ amount: amount.amount, live: checked(formData.get("live")) }).where(eq(jeepLines.id, id));
-  await recordActivity(db, actor, { kind: "jeep_line", recordId: id, text: `Saved jeep line ${row.label}, ${row.place}` });
+  await db.transaction(async (tx) => {
+    await tx.update(jeepLines).set({ amount: amount.amount, live: checked(formData.get("live")) }).where(eq(jeepLines.id, id));
+    await recordActivity(tx, actor, { kind: "jeep_line", recordId: id, text: `Saved jeep line ${row.label}, ${row.place}` });
+  });
   return { ok: true, message: "Jeep line saved." };
 }
 
@@ -117,9 +125,11 @@ export async function saveMarginAs(actor: SessionUser, formData: FormData): Prom
   const margin = readMarginPercent(String(formData.get("percent") ?? ""));
   if (!margin.ok) return margin;
   const [row] = await db.select({ id: seasons.id }).from(seasons).limit(1);
-  if (!row) await db.insert(seasons).values({ percent: margin.percent });
-  else await db.update(seasons).set({ percent: margin.percent }).where(eq(seasons.id, row.id));
-  await recordActivity(db, actor, { kind: "margin", text: `Changed the profit margin to ${margin.percent} percent` });
+  await db.transaction(async (tx) => {
+    if (!row) await tx.insert(seasons).values({ percent: margin.percent });
+    else await tx.update(seasons).set({ percent: margin.percent }).where(eq(seasons.id, row.id));
+    await recordActivity(tx, actor, { kind: "margin", text: `Changed the profit margin to ${margin.percent} percent` });
+  });
   return { ok: true, message: `Profit margin saved: ${margin.percent} percent.` };
 }
 
