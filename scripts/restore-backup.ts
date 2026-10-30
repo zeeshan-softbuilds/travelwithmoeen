@@ -24,6 +24,11 @@ function toRows(table: (typeof BACKUP_TABLES)[number][1], rows: Record<string, u
   });
 }
 
+function isSerialId(table: (typeof BACKUP_TABLES)[number][1]) {
+  const id = (getTableColumns(table) as Record<string, { columnType: string } | undefined>).id;
+  return id?.columnType === "PgSerial";
+}
+
 async function main() {
   const [file, flag] = process.argv.slice(2);
   if (!file || flag !== "--yes") usage();
@@ -44,9 +49,11 @@ async function main() {
       for (let i = 0; i < rows.length; i += CHUNK) {
         await tx.insert(table).values(rows.slice(i, i + CHUNK) as never);
       }
-      if ("id" in getTableColumns(table)) {
+      // Only a serial id has a sequence to move on. tours has a text id, and photos, reviews, slides,
+      // and site_settings set their own whole-number ids, so they are left alone.
+      if (isSerialId(table)) {
         await tx.execute(
-          sql`select setval(pg_get_serial_sequence(${name}, 'id'), coalesce(max(id), 1), max(id) is not null) from ${sql.identifier(name)} where pg_get_serial_sequence(${name}, 'id') is not null`,
+          sql`select setval(pg_get_serial_sequence(${name}, 'id'), coalesce(max(id), 1), max(id) is not null) from ${sql.identifier(name)}`,
         );
       }
       console.log(`${name}: ${rows.length} rows`);

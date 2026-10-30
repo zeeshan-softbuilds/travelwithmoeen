@@ -1,15 +1,18 @@
-import { existsSync, readFileSync } from "fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs";
+import os from "os";
 import path from "path";
 import { spawn } from "child_process";
 import { head, list } from "@vercel/blob";
 import { count, eq, gt, like, max } from "drizzle-orm";
+import postgres from "postgres";
+import { drizzle } from "drizzle-orm/postgres-js";
 import { db, sql } from "../lib/db";
 import { activity, guestRequests, loginFailures, photos, places, posts, quoteDays, quoteExtras, quoteNights, quotes, reviews, seasons, tourPlaces, tours, users } from "../lib/db/schema";
 import { inferTourPlaceLinks, linkInferredTourPlaces } from "../lib/office/tour-places";
 import { authenticate } from "../lib/auth/authenticate";
 import { createUserAs, removeUserAs } from "../lib/office/users";
 import { officeMediaPath } from "../lib/office/media";
-import { BACKUP_TABLES } from "../lib/office/backup";
+import { BACKUP_TABLES, readBackupFile } from "../lib/office/backup";
 import { GUEST_EMAIL_LIMIT, GUEST_MESSAGE_LIMIT, GUEST_NAME_LIMIT, GUEST_PHONE_LIMIT } from "../lib/requests";
 
 const EDITOR_EMAIL = "editor-step3-requests@travelwithmoeen.test";
@@ -1396,6 +1399,63 @@ async function assertActivity(editorCookie: string, managerCookie: string, owner
   if (BACKUP_TABLES.at(-1)?.[0] !== "activity") throw new Error("The activity table is not the last backup table.");
 }
 
+const RESTORE_COPY = "travelwithmoeen_restore_check";
+
+function runWithDatabase(command: string, args: string[], databaseUrl: string) {
+  return new Promise<{ code: number | null; output: string }>((resolve) => {
+    const child = spawn(command, args, { env: { ...process.env, DATABASE_URL: databaseUrl }, shell: process.platform === "win32" });
+    let output = "";
+    child.stdout.on("data", (chunk) => (output += chunk));
+    child.stderr.on("data", (chunk) => (output += chunk));
+    child.on("close", (code) => resolve({ code, output }));
+  });
+}
+
+// One table's rows in a fixed order, so the backup and the copy compare whatever order they come in.
+function sortedRows(rows: Record<string, unknown>[]) {
+  return rows.map((row) => JSON.stringify(row)).sort();
+}
+
+// T-44: a backup restores into a copy database with every table and row, tours included. It runs
+// the real npm run db:restore on a copy made for this check, then removes the copy.
+async function assertBackupRestoresIntoCopy() {
+  const copyUrl = new URL(process.env.DATABASE_URL ?? "");
+  copyUrl.pathname = `/${RESTORE_COPY}`;
+  const file = await readBackupFile();
+  if (file.tables.tours.length === 0) throw new Error("The backup has no tours to restore.");
+  // The file holds logins, so it is readable only by this user and removed at the end.
+  const folder = mkdtempSync(path.join(os.tmpdir(), "twm-restore-check-"));
+  const filePath = path.join(folder, "backup.json");
+  writeFileSync(filePath, JSON.stringify(file), { mode: 0o600 });
+  await sql.unsafe(`drop database if exists ${RESTORE_COPY} with (force)`);
+  await sql.unsafe(`create database ${RESTORE_COPY}`);
+  const copySql = postgres(copyUrl.toString(), { max: 1, onnotice: () => {} });
+  try {
+    const pushed = await runWithDatabase("npx", ["drizzle-kit", "push", "--force"], copyUrl.toString());
+    if (pushed.code !== 0) throw new Error(`The copy database did not get its tables: ${pushed.output.slice(-300)}`);
+    const restored = await runWithDatabase("npm", ["run", "-s", "db:restore", "--", filePath, "--yes"], copyUrl.toString());
+    if (!restored.output.includes(`into ${copyUrl.hostname}/${RESTORE_COPY}`)) throw new Error("The restore did not name the copy database.");
+    if (restored.code !== 0 || !restored.output.includes("Restore finished.")) {
+      const reason = restored.output.split("\n").find((line) => /(Error|error):/.test(line) && !line.trim().startsWith("at ")) ?? restored.output.slice(-300);
+      throw new Error(`The backup did not restore into a copy database: ${reason.trim()}`);
+    }
+    const copy = drizzle(copySql);
+    for (const [name, table] of BACKUP_TABLES) {
+      const backedUp = sortedRows(JSON.parse(JSON.stringify(file.tables[name])));
+      const inCopy = sortedRows(JSON.parse(JSON.stringify(await copy.select().from(table))));
+      if (inCopy.length !== backedUp.length) throw new Error(`The copy has ${inCopy.length} ${name} rows. The backup has ${backedUp.length}.`);
+      if (inCopy.some((row, index) => row !== backedUp[index])) throw new Error(`The restored ${name} rows differ from the backup.`);
+    }
+    // A table with a serial id carries on after the restored rows.
+    const [next] = await copySql`select nextval(pg_get_serial_sequence('users', 'id'))::int as id, (select max(id) from users)::int as top`;
+    if (!next || next.id <= next.top) throw new Error("After a restore, a new login would reuse an id.");
+  } finally {
+    await copySql.end({ timeout: 5 });
+    await sql.unsafe(`drop database if exists ${RESTORE_COPY} with (force)`);
+    rmSync(folder, { recursive: true, force: true });
+  }
+}
+
 // T-41: an office save with no body is a 400, not a 500. With no session it is still a 401.
 async function assertEmptyOfficeSave(editorCookie: string) {
   const empty = await fetch(`${siteBase()}/api/office/tours`, { method: "POST", headers: { cookie: editorCookie } });
@@ -1586,6 +1646,7 @@ async function main() {
       throw new Error("The public home page includes the test guest phone.");
     }
     await assertOfficeRequests(savedIds);
+    await assertBackupRestoresIntoCopy();
     console.log("Step 3 checks passed.");
   } finally {
     for (const id of savedIds) {

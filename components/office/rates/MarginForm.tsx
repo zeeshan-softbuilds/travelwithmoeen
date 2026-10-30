@@ -55,7 +55,7 @@ export function MarginForm({ margin, savedBy }: { margin: number; savedBy?: stri
           </div>
           <div className="field">
             <label className="label" htmlFor="margin-slider">
-              Slider
+              Profit margin slider
             </label>
             <input
               className="range"
