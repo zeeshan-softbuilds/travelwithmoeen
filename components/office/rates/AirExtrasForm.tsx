@@ -19,7 +19,7 @@ const FIELDS: { name: keyof Air; label: string }[] = [
   { name: "sticker", label: "Sticker" },
 ];
 
-export function AirExtrasForm({ air }: { air: Air }) {
+export function AirExtrasForm({ air, savedBy }: { air: Air; savedBy?: string }) {
   const router = useRouter();
   const [state, setState] = useState<ActionResult | null>(null);
   const [pending, start] = useTransition();
@@ -39,7 +39,7 @@ export function AirExtrasForm({ air }: { air: Air }) {
   return (
     <form onSubmit={submit} className="stack">
       <input type="hidden" name="kind" value="air" />
-      <Card title="Air extras" description="Added to every By Air quote, per guest.">
+      <Card title="Air extras" description="Added to every By Air quote, per guest." savedBy={savedBy}>
         <div className="form-grid">
           {FIELDS.map((field) => (
             <Field key={field.name} id={`air-${field.name}`} label={field.label}>

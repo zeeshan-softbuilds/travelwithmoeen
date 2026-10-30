@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { activityHref } from "@/components/office/activity";
 import { ROLE_NAME } from "@/components/office/office-nav";
 import { formatDateTime, greetingAt, hoursSince, relativeTime, requestTime } from "@/components/office/format";
 import { StatusBadge, guestName, initialOf, messagePreview } from "@/components/office/requests/request-labels";
@@ -10,7 +11,7 @@ import { EmptyState } from "@/components/office/ui/EmptyState";
 import { Icon, type IconName } from "@/components/office/ui/Icon";
 import { PageHead } from "@/components/office/ui/PageHead";
 import { Stat, Stats } from "@/components/office/ui/Stat";
-import { getOfficeBackups, getOfficeRequests, getOfficeSession } from "@/lib/http/office-session";
+import { getOfficeActivity, getOfficeBackups, getOfficeRequests, getOfficeSession } from "@/lib/http/office-session";
 import { getRateDesk, getTours } from "@/lib/http/site-content";
 
 type Todo = {
@@ -34,11 +35,13 @@ export default async function OfficeDashboardPage() {
   if (!user) redirect("/office/login");
 
   // Each read runs only for a role that may call its route.
-  const [requests, desk, backups, tours] = await Promise.all([
+  const [requests, desk, backups, tours, activity] = await Promise.all([
     getOfficeRequests(),
     user.canEditRates ? getRateDesk() : null,
     user.canRunBackup ? getOfficeBackups() : null,
     user.canEditRates ? null : getTours(),
+    // The route returns only the rows this role may read (BR-86).
+    getOfficeActivity(),
   ]);
   const now = requestTime();
 
@@ -184,6 +187,33 @@ export default async function OfficeDashboardPage() {
           </ul>
         </Card>
       </div>
+
+      <Card title="Recent activity" description="Changes made in the office" flush>
+        {activity.length ? (
+          <ol className="feed">
+            {activity.map((row) => (
+              <li key={row.id}>
+                <span className="avatar" aria-hidden="true">
+                  {row.userEmail.slice(0, 2).toUpperCase()}
+                </span>
+                <span className="feed-main">
+                  <Link href={activityHref(row)}>{row.text}</Link>
+                  <small>
+                    {row.userEmail} ·{" "}
+                    <time dateTime={row.at} title={formatDateTime(row.at)}>
+                      {relativeTime(row.at, now)}
+                    </time>
+                  </small>
+                </span>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <EmptyState icon="activity" title="No changes yet">
+            Saves in the office appear here, with who made them and when.
+          </EmptyState>
+        )}
+      </Card>
     </>
   );
 }

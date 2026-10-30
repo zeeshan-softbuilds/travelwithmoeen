@@ -14,7 +14,7 @@ import { postOfficeForm } from "@/lib/http/office-client";
 import type { ActionResult } from "@/lib/http/result";
 import type { Testimonial } from "@/data/testimonials";
 
-export function ReviewForm({ review, frame }: { review: Testimonial | null; frame: EditorFrame }) {
+export function ReviewForm({ review, frame, savedBy }: { review: Testimonial | null; frame: EditorFrame; savedBy?: string }) {
   const [name, setName] = useState(review?.name ?? "");
   const [text, setText] = useState(review?.text ?? "");
   const [rating, setRating] = useState(String(review?.rating ?? 5));
@@ -44,6 +44,7 @@ export function ReviewForm({ review, frame }: { review: Testimonial | null; fram
       title={review ? review.name : "Add a review"}
       description={review ? "Shown on the home page." : "Shown on the home page after you add it."}
       closeHref={frame.closeHref}
+      savedBy={savedBy}
       previousHref={frame.previousHref}
       nextHref={frame.nextHref}
       position={review ? frame.position : null}

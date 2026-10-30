@@ -1,10 +1,13 @@
 import { loadRateDesk } from "@/components/office/rates/load-rates";
 import { RateTable } from "@/components/office/rates/RateTable";
+import { savedByCells } from "@/components/office/activity";
+import { requestTime } from "@/components/office/format";
+import { getSavedBy } from "@/lib/http/office-session";
 import { Alert } from "@/components/office/ui/Alert";
 
 // Hotel rates by place, start city, and grade, with twin and 3-share (BR-84). The catalog is T-39.
 export default async function RatesHotelsPage() {
-  const desk = await loadRateDesk();
+  const [desk, savedBy] = await Promise.all([loadRateDesk(), getSavedBy("hotel_rate")]);
   return (
     <>
       <Alert tone="info" title="Hotel nights use these grade rates">
@@ -25,6 +28,7 @@ export default async function RatesHotelsPage() {
           { key: "offered", label: "Offered", type: "switch" },
         ]}
         rows={desk.hotels.map((row) => ({ id: row.id, values: { place: row.place, startCity: row.startCity, grade: row.grade, twin: row.twin, triple: row.triple, hotelName: row.hotelName, offered: row.offered } }))}
+        savedBy={savedByCells(savedBy, requestTime())}
         nameKeys={["place", "startCity", "grade"]}
       />
     </>

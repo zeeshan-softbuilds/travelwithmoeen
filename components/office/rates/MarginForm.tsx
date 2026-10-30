@@ -11,7 +11,7 @@ import { MARGIN_MAX } from "@/lib/quote";
 
 // The saved profit margin: one whole percent from 0 to 100, with a slider (BR-22). The server
 // checks the number. The number box and the slider follow each other.
-export function MarginForm({ margin }: { margin: number }) {
+export function MarginForm({ margin, savedBy }: { margin: number; savedBy?: string }) {
   const router = useRouter();
   const [value, setValue] = useState(String(margin));
   const [result, setResult] = useState<ActionResult | null>(null);
@@ -32,7 +32,7 @@ export function MarginForm({ margin }: { margin: number }) {
   return (
     <form onSubmit={submit} className="stack">
       <input type="hidden" name="kind" value="season" />
-      <Card title="Profit margin" description={`Added last to every quote, after the costs. Saved now: ${margin} percent.`}>
+      <Card title="Profit margin" description={`Added last to every quote, after the costs. Saved now: ${margin} percent.`} savedBy={savedBy}>
         <div className="form-grid">
           <div className="field">
             <label className="label" htmlFor="margin-percent">

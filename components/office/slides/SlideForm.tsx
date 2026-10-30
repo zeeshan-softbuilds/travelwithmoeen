@@ -13,7 +13,7 @@ import { postOfficeForm } from "@/lib/http/office-client";
 import type { ActionResult } from "@/lib/http/result";
 import type { HomeSlide } from "@/lib/content-types";
 
-export function SlideForm({ slide, position, frame }: { slide: HomeSlide | null; position: number; frame: EditorFrame }) {
+export function SlideForm({ slide, position, frame, savedBy }: { slide: HomeSlide | null; position: number; frame: EditorFrame; savedBy?: string }) {
   const [title, setTitle] = useState(slide?.title ?? "");
   const [rotation, setRotation] = useState(String(slide?.rotation ?? 0));
   const [image, setImage] = useState(slide?.image ?? "");
@@ -41,6 +41,7 @@ export function SlideForm({ slide, position, frame }: { slide: HomeSlide | null;
       title={slide ? slide.title : "Add a slide"}
       description={slide ? `Position ${position} on the home page` : "It joins the end of the row unless you give it a lower order."}
       closeHref={frame.closeHref}
+      savedBy={savedBy}
       previousHref={frame.previousHref}
       nextHref={frame.nextHref}
       position={slide ? frame.position : null}

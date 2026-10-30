@@ -7,7 +7,9 @@ import { SlideForm } from "@/components/office/slides/SlideForm";
 import { buttonClass } from "@/components/office/ui/Button";
 import { Icon } from "@/components/office/ui/Icon";
 import { PageHead } from "@/components/office/ui/PageHead";
-import { getOfficeSession } from "@/lib/http/office-session";
+import { savedByText } from "@/components/office/activity";
+import { requestTime } from "@/components/office/format";
+import { getOfficeSession, getSavedBy } from "@/lib/http/office-session";
 import { getSlides } from "@/lib/http/site-content";
 
 const LIST = "/office/slides";
@@ -32,6 +34,7 @@ export async function SlidesScreen({ edit }: { edit?: string }) {
   }));
   const index = open ? slides.findIndex((slide) => slide.id === open.id) : -1;
 
+  const savedBy = open ? savedByText((await getSavedBy("slide", [open.id]))[String(open.id)], requestTime()) : "";
   return (
     <>
       <PageHead
@@ -50,6 +53,7 @@ export async function SlidesScreen({ edit }: { edit?: string }) {
         <SlideForm
           key={edit}
           slide={open}
+          savedBy={savedBy}
           position={open ? index + 1 : slides.length + 1}
           frame={frameFor(slides, index, LIST, (slide) => hrefOf(slide.id))}
         />

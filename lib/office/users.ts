@@ -5,8 +5,11 @@ import { hashPassword } from "@/lib/auth/password";
 import { canManageUsers, isRole, type Role } from "@/lib/auth/permissions";
 import type { SessionUser } from "@/lib/auth/session";
 import { forbidden, type ActionResult } from "@/lib/http/result";
+import { recordActivity } from "@/lib/office/activity";
 
 export type { ActionResult };
+
+const ROLE_NAME: Record<Role, string> = { owner: "Owner", manager: "Manager", editor: "Editor" };
 
 export async function listUsersAs(actor: SessionUser) {
   if (!canManageUsers(actor.role)) {
@@ -40,11 +43,16 @@ export async function createUserAs(
   if (existing.length > 0) {
     return { ok: false, error: "That email already has a login." };
   }
-  await db.insert(users).values({
-    email,
-    passwordHash: await hashPassword(input.password),
-    role: input.role,
-  });
+  const [created] = await db
+    .insert(users)
+    .values({
+      email,
+      passwordHash: await hashPassword(input.password),
+      role: input.role,
+    })
+    .returning({ id: users.id });
+  // The login's email and role only. Never the password.
+  await recordActivity(db, actor, { kind: "user", recordId: created?.id, text: `Created a login for ${email} as ${ROLE_NAME[input.role]}` });
   return { ok: true, message: "Login created." };
 }
 
@@ -66,6 +74,7 @@ export async function removeUserAs(actor: SessionUser, userId: number): Promise<
     }
   }
   await db.delete(users).where(eq(users.id, userId));
+  await recordActivity(db, actor, { kind: "user", recordId: userId, text: `Removed the login ${target.email}` });
   return { ok: true, message: "Login removed." };
 }
 
@@ -87,5 +96,6 @@ export async function changeRoleAs(actor: SessionUser, userId: number, role: str
     }
   }
   await db.update(users).set({ role: role as Role }).where(eq(users.id, userId));
+  await recordActivity(db, actor, { kind: "user", recordId: userId, text: `Changed ${target.email} to ${ROLE_NAME[role]}` });
   return { ok: true, message: "Role updated." };
 }

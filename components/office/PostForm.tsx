@@ -20,7 +20,7 @@ const SECTIONS = [
   { id: "post-sections", label: "Sections" },
 ];
 
-export function PostForm({ post, frame }: { post: Blog; frame: EditorFrame }) {
+export function PostForm({ post, frame, savedBy }: { post: Blog; frame: EditorFrame; savedBy?: string }) {
   const [title, setTitle] = useState(post.title);
   const [excerpt, setExcerpt] = useState(post.excerpt);
   const [author, setAuthor] = useState(post.author);
@@ -54,6 +54,7 @@ export function PostForm({ post, frame }: { post: Blog; frame: EditorFrame }) {
       title={post.title}
       description={`${post.author} · ${post.date}`}
       closeHref={frame.closeHref}
+      savedBy={savedBy}
       previousHref={frame.previousHref}
       nextHref={frame.nextHref}
       position={frame.position}

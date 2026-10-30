@@ -40,12 +40,14 @@ export function TourForm({
   places,
   mode,
   frame,
+  savedBy,
 }: {
   tour: Tour;
   canDelete: boolean;
   places: { slug: string; title: string }[];
   mode: "create" | "edit";
   frame?: EditorFrame;
+  savedBy?: string;
 }) {
   const [name, setName] = useState(tour.name);
   const [description, setDescription] = useState(tour.description);
@@ -282,6 +284,7 @@ export function TourForm({
       viewHref={`/tours/${encodeURIComponent(tour.id)}`}
       sections={SECTIONS}
       preview={preview}
+      savedBy={savedBy}
     >
       {form}
     </EditorDrawer>
