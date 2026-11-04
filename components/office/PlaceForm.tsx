@@ -8,10 +8,10 @@ import { photoStyle, rememberSaved } from "@/components/office/content/media";
 import { FileField } from "@/components/office/content/PhotoField";
 import { SaveBar } from "@/components/office/content/SaveBar";
 import { SectionsEditor } from "@/components/office/content/SectionsEditor";
+import { postOfficeFormWithUploads } from "@/components/office/content/uploads";
 import { Card } from "@/components/office/ui/Card";
 import { Field } from "@/components/office/ui/Field";
 import { Icon } from "@/components/office/ui/Icon";
-import { postOfficeForm } from "@/lib/http/office-client";
 import type { ActionResult } from "@/lib/http/result";
 import type { Destination } from "@/data/destinations";
 
@@ -29,7 +29,7 @@ export function PlaceForm({ place, frame, savedBy }: { place: Destination; frame
   const [banner, setBanner] = useState(place.bannerImage);
   const [bannerPreview, setBannerPreview] = useState("");
   const [state, action, pending] = useActionState(async (previous: ActionResult | null, formData: FormData) => {
-    const result = await postOfficeForm("/api/office/places", formData);
+    const result = await postOfficeFormWithUploads("/api/office/places", formData);
     if (result.ok) {
       rememberSaved(result.message ?? "Place saved.");
       window.location.reload();

@@ -5,7 +5,7 @@ import type { ActionResult } from "@/lib/http/result";
 import type { BlogSection } from "@/data/blog";
 import type { DestinationSection } from "@/data/destinations";
 import { createUserAs, changeRoleAs, removeUserAs } from "@/lib/office/users";
-import { deleteOfficeFiles } from "@/lib/office/media";
+import { checkUploadedFile, deleteOfficeFiles, type UploadKind } from "@/lib/office/media";
 import { savePriceFromKind } from "@/lib/office/rates";
 import { readRecordId } from "@/lib/office/record-id";
 import {
@@ -92,6 +92,19 @@ function uploadedFile(formData: FormData, name: string) {
   return file instanceof File && file.size > 0 ? file : null;
 }
 
+// A chosen file comes one of two ways. A small one can still come in the form, as before. Since T-51
+// the office uploads it straight to the media store and sends its address as <name>Uploaded, which
+// is checked here. Either way the stored file joins the save's list, so a refused save deletes it.
+async function chosenFile(actor: SessionUser, stored: string[], formData: FormData, name: string, kind: UploadKind): Promise<string | ActionResult | null> {
+  const file = uploadedFile(formData, name);
+  if (file) return kind === "pdf" ? storePdf(actor, stored, file) : storeImage(actor, stored, file);
+  const sent = formData.get(`${name}Uploaded`);
+  if (typeof sent !== "string" || !sent.trim()) return null;
+  const checked = await checkUploadedFile(actor, sent, kind);
+  if (typeof checked === "string") stored.push(checked);
+  return checked;
+}
+
 function stringList(formData: FormData, name: string) {
   return formData
     .getAll(name)
@@ -144,26 +157,23 @@ export async function savePriceFromForm(actor: SessionUser, formData: FormData):
 
 async function tourBodyFromForm(actor: SessionUser, formData: FormData, stored: string[]): Promise<Omit<TourEditInput, "id"> | ActionResult> {
   let image = String(formData.get("image") ?? "");
-  const file = uploadedFile(formData, "photo");
-  if (file) {
-    const uploaded = await storeImage(actor, stored, file);
-    if (typeof uploaded !== "string") return uploaded;
-    image = uploaded;
+  const photo = await chosenFile(actor, stored, formData, "photo", "image");
+  if (photo !== null) {
+    if (typeof photo !== "string") return photo;
+    image = photo;
   }
   let pdf = String(formData.get("pdf") ?? "");
-  const pdfFile = uploadedFile(formData, "pdfFile");
-  if (pdfFile) {
-    const uploaded = await storePdf(actor, stored, pdfFile);
-    if (typeof uploaded !== "string") return uploaded;
-    pdf = uploaded;
+  const pdfFile = await chosenFile(actor, stored, formData, "pdfFile", "pdf");
+  if (pdfFile !== null) {
+    if (typeof pdfFile !== "string") return pdfFile;
+    pdf = pdfFile;
   }
   const galleryImages =
     formData.get("galleryImageSet") === "1" ? stringList(formData, "galleryImage") : lines(String(formData.get("galleryImages") ?? ""));
-  const extraPhoto = uploadedFile(formData, "extraPhoto");
-  if (extraPhoto) {
-    const uploaded = await storeImage(actor, stored, extraPhoto);
-    if (typeof uploaded !== "string") return uploaded;
-    galleryImages.push(uploaded);
+  const extraPhoto = await chosenFile(actor, stored, formData, "extraPhoto", "image");
+  if (extraPhoto !== null) {
+    if (typeof extraPhoto !== "string") return extraPhoto;
+    galleryImages.push(extraPhoto);
   }
   let itinerary: TourEditInput["itinerary"];
   try {
@@ -228,18 +238,16 @@ export async function updatePlaceFromForm(actor: SessionUser, formData: FormData
       return { ok: false, error: "The place text could not be read." };
     }
     let bannerImage = String(formData.get("bannerImage") ?? "");
-    const bannerPhoto = uploadedFile(formData, "bannerPhoto");
-    if (bannerPhoto) {
-      const uploaded = await storeImage(actor, stored, bannerPhoto);
-      if (typeof uploaded !== "string") return uploaded;
-      bannerImage = uploaded;
+    const bannerPhoto = await chosenFile(actor, stored, formData, "bannerPhoto", "image");
+    if (bannerPhoto !== null) {
+      if (typeof bannerPhoto !== "string") return bannerPhoto;
+      bannerImage = bannerPhoto;
     }
     for (let index = 0; index < content.length; index += 1) {
-      const sectionPhoto = uploadedFile(formData, `sectionPhoto_${index}`);
-      if (!sectionPhoto) continue;
-      const uploaded = await storeImage(actor, stored, sectionPhoto);
-      if (typeof uploaded !== "string") return uploaded;
-      content[index] = { ...content[index], image: uploaded };
+      const sectionPhoto = await chosenFile(actor, stored, formData, `sectionPhoto_${index}`, "image");
+      if (sectionPhoto === null) continue;
+      if (typeof sectionPhoto !== "string") return sectionPhoto;
+      content[index] = { ...content[index], image: sectionPhoto };
     }
     return updatePlaceAs(actor, {
       slug: String(formData.get("slug") ?? ""),
@@ -262,18 +270,16 @@ export async function updatePostFromForm(actor: SessionUser, formData: FormData)
       return { ok: false, error: "The post text could not be read." };
     }
     let coverImage = String(formData.get("coverImage") ?? "");
-    const coverPhoto = uploadedFile(formData, "coverPhoto");
-    if (coverPhoto) {
-      const uploaded = await storeImage(actor, stored, coverPhoto);
-      if (typeof uploaded !== "string") return uploaded;
-      coverImage = uploaded;
+    const coverPhoto = await chosenFile(actor, stored, formData, "coverPhoto", "image");
+    if (coverPhoto !== null) {
+      if (typeof coverPhoto !== "string") return coverPhoto;
+      coverImage = coverPhoto;
     }
     for (let index = 0; index < content.length; index += 1) {
-      const sectionPhoto = uploadedFile(formData, `sectionPhoto_${index}`);
-      if (!sectionPhoto) continue;
-      const uploaded = await storeImage(actor, stored, sectionPhoto);
-      if (typeof uploaded !== "string") return uploaded;
-      content[index] = { ...content[index], image: uploaded };
+      const sectionPhoto = await chosenFile(actor, stored, formData, `sectionPhoto_${index}`, "image");
+      if (sectionPhoto === null) continue;
+      if (typeof sectionPhoto !== "string") return sectionPhoto;
+      content[index] = { ...content[index], image: sectionPhoto };
     }
     return updatePostAs(actor, {
       slug: String(formData.get("slug") ?? ""),
@@ -291,11 +297,10 @@ export async function savePhotoFromForm(actor: SessionUser, formData: FormData):
   const stored: string[] = [];
   return keepFilesOnlyIfSaved(stored, async () => {
     let src = String(formData.get("src") ?? "");
-    const file = formData.get("photo");
-    if (file instanceof File && file.size > 0) {
-      const uploaded = await storeImage(actor, stored, file);
-      if (typeof uploaded !== "string") return uploaded;
-      src = uploaded;
+    const photo = await chosenFile(actor, stored, formData, "photo", "image");
+    if (photo !== null) {
+      if (typeof photo !== "string") return photo;
+      src = photo;
     }
     const idValue = String(formData.get("id") ?? "");
     return savePhotoAs(actor, {
@@ -318,11 +323,10 @@ export async function saveReviewFromForm(actor: SessionUser, formData: FormData)
   return keepFilesOnlyIfSaved(stored, async () => {
     const idValue = String(formData.get("id") ?? "");
     let avatar = String(formData.get("avatar") ?? "");
-    const avatarPhoto = uploadedFile(formData, "avatarPhoto");
-    if (avatarPhoto) {
-      const uploaded = await storeImage(actor, stored, avatarPhoto);
-      if (typeof uploaded !== "string") return uploaded;
-      avatar = uploaded;
+    const avatarPhoto = await chosenFile(actor, stored, formData, "avatarPhoto", "image");
+    if (avatarPhoto !== null) {
+      if (typeof avatarPhoto !== "string") return avatarPhoto;
+      avatar = avatarPhoto;
     }
     return saveReviewAs(actor, {
       id: idValue ? Number(idValue) : undefined,
@@ -343,11 +347,10 @@ export async function saveSlideFromForm(actor: SessionUser, formData: FormData):
   const stored: string[] = [];
   return keepFilesOnlyIfSaved(stored, async () => {
     let image = String(formData.get("image") ?? "");
-    const file = formData.get("photo");
-    if (file instanceof File && file.size > 0) {
-      const uploaded = await storeImage(actor, stored, file);
-      if (typeof uploaded !== "string") return uploaded;
-      image = uploaded;
+    const photo = await chosenFile(actor, stored, formData, "photo", "image");
+    if (photo !== null) {
+      if (typeof photo !== "string") return photo;
+      image = photo;
     }
     const idValue = String(formData.get("id") ?? "");
     return saveSlideAs(actor, {

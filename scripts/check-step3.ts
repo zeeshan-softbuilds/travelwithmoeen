@@ -2,7 +2,8 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs
 import os from "os";
 import path from "path";
 import { spawn } from "child_process";
-import { head, list } from "@vercel/blob";
+import { del, head, list, put } from "@vercel/blob";
+import { upload } from "@vercel/blob/client";
 import { count, eq, gt, like, max } from "drizzle-orm";
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
@@ -853,6 +854,7 @@ async function assertOfficeRequests(savedIds: number[]) {
     await assertBadRecordIds(editorCookie, managerCookie, ownerCookie, saved.body.id);
     await assertTourDeleteNotFound(editorCookie, managerCookie);
     await assertNulText(editorCookie);
+    await assertDirectUploads(editorCookie, managerCookie);
     await assertRefusedSaveCleanup(editorCookie);
     await assertEmptyOfficeSave(editorCookie);
     await assertOldFileRemovedAfterSave(editorCookie);
@@ -1142,6 +1144,141 @@ async function assertBadRecordIds(editorCookie: string, managerCookie: string, o
     await db.delete(reviews).where(eq(reviews.name, "T-52 check review"));
     await db.delete(slides).where(eq(slides.title, "T-52 check slide"));
     await db.delete(users).where(eq(users.email, "t52-check@travelwithmoeen.test"));
+  }
+}
+
+// T-51 (design section 14): an office file goes from the browser straight to the media store with
+// a short-lived permission, and the save checks the stored file before the record changes.
+async function assertDirectUploads(editorCookie: string, managerCookie: string) {
+  const uploadsPath = `${siteBase()}/api/office/uploads`;
+  const permission = async (pathname: string, kind: string, cookie: string) => {
+    const response = await fetch(uploadsPath, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(cookie ? { cookie } : {}) },
+      body: JSON.stringify({ type: "blob.generate-client-token", payload: { pathname, clientPayload: JSON.stringify({ kind }), multipart: false } }),
+    });
+    return { status: response.status, body: (await response.json().catch(() => ({}))) as { clientToken?: string; error?: string } };
+  };
+  const sent: string[] = [];
+  const direct = async (bytes: Uint8Array, extension: string, kind: string, contentType: string) => {
+    const stored = await upload(`media/upload.${extension}`, new Blob([new Uint8Array(bytes)], { type: contentType }), {
+      access: "public",
+      handleUploadUrl: uploadsPath,
+      clientPayload: JSON.stringify({ kind }),
+      contentType,
+      headers: { cookie: editorCookie },
+    });
+    sent.push(stored.url);
+    return stored.url;
+  };
+  const jpegBytes = (size: number) => {
+    const bytes = new Uint8Array(size);
+    bytes.set([0xff, 0xd8, 0xff, 0xe0]);
+    return bytes;
+  };
+  const photoCount = async () => (await db.select({ total: count() }).from(photos))[0]?.total ?? 0;
+  const [shipped] = await db.select({ image: tours.image }).from(tours).where(like(tours.image, "/images/%")).limit(1);
+  let tourId = "";
+  try {
+    // The permission route: no session 401, a Manager 403, an Editor a permission.
+    const signedOut = await permission("media/upload.jpg", "image", "");
+    const manager = await permission("media/upload.jpg", "image", managerCookie);
+    const editor = await permission("media/upload.jpg", "image", editorCookie);
+    if (signedOut.status !== 401 || manager.status !== 403 || editor.status !== 200 || !editor.body.clientToken) {
+      throw new Error(`The upload permission answered ${signedOut.status} signed out, ${manager.status} for a Manager, and ${editor.status} for an Editor.`);
+    }
+    // A path with a folder or another name, a kind that is not image or pdf, and an SVG are refused.
+    for (const [pathname, kind] of [
+      ["media/folder/upload.jpg", "image"],
+      ["media/../upload.jpg", "image"],
+      ["images/upload.jpg", "image"],
+      ["media/photo.jpg", "image"],
+      ["media/upload.jpg", "video"],
+      ["media/upload.svg", "image"],
+      ["media/upload.pdf", "image"],
+    ]) {
+      const refused = await permission(pathname, kind, editorCookie);
+      if (refused.status !== 400 || refused.body.clientToken) throw new Error(`An upload permission for ${pathname} as ${kind} returned ${refused.status}, not 400.`);
+    }
+
+    // A save naming a file that is not in this store, or not under media/, is refused and changes nothing.
+    const store = new URL(await direct(jpegBytes(1024), "jpg", "image", "image/jpeg"));
+    const before = await photoCount();
+    for (const url of [
+      `https://example.com${store.pathname}`,
+      `https://another-store.public.blob.vercel-storage.com${store.pathname}`,
+      `${store.origin}/images/no-such-photo.jpg`,
+      `${store.origin}/media/no-such-photo.jpg`,
+    ]) {
+      const reply = await officePost("/api/office/photos", galleryForm({ alt: "T-51 check photo", category: "private", src: "", photoUploaded: url }), editorCookie);
+      if (reply.status !== 400) throw new Error(`A gallery save naming ${url} returned ${reply.status}, not 400.`);
+    }
+    if ((await photoCount()) !== before) throw new Error("A save naming a file outside this store added a photo.");
+    if (!(await mediaFileExists(store.href))) throw new Error("A refused save naming another file removed this store's file.");
+
+    // Only a fresh direct upload is accepted. An existing office file, named the older way, is refused
+    // and kept, whatever else is wrong with the save, so a record that still uses it keeps it.
+    const olderName = (extension: string) => `media/${Date.now()}-${Math.random().toString(16).slice(2, 18)}.${extension}`;
+    const olderPhoto = (await put(olderName("jpg"), Buffer.from(JPEG), { access: "public", token: process.env.MEDIA_READ_WRITE_TOKEN, contentType: "image/jpeg", addRandomSuffix: false })).url;
+    const olderPdf = (await put(olderName("pdf"), Buffer.from("%PDF-1.7\nT-51 older PDF"), { access: "public", token: process.env.MEDIA_READ_WRITE_TOKEN, contentType: "application/pdf", addRandomSuffix: false })).url;
+    sent.push(olderPhoto, olderPdf);
+    const notInStore = "That file is not in the office media store. Choose it again.";
+    const emptyDescription = await officePost("/api/office/photos", galleryForm({ alt: "", category: "private", src: "", photoUploaded: olderPhoto }), editorCookie);
+    if (emptyDescription.status !== 400 || emptyDescription.body.error !== notInStore || !(await mediaFileExists(olderPhoto))) {
+      throw new Error(`A gallery save with an empty description, naming an existing office photo, returned ${emptyDescription.status} (${emptyDescription.body.error ?? ""}), or the photo was deleted.`);
+    }
+    const pdfAsPhoto = await officePost("/api/office/photos", galleryForm({ alt: "T-51 check photo", category: "private", src: "", photoUploaded: olderPdf }), editorCookie);
+    if (pdfAsPhoto.status !== 400 || pdfAsPhoto.body.error !== notInStore || !(await mediaFileExists(olderPdf))) {
+      throw new Error(`A gallery save naming an existing tour PDF returned ${pdfAsPhoto.status} (${pdfAsPhoto.body.error ?? ""}), or the PDF was deleted.`);
+    }
+    if ((await photoCount()) !== before) throw new Error("A save naming an existing office file added a photo.");
+
+    // A file uploaded as image/jpeg whose bytes are not an image is refused and deleted.
+    const fake = await direct(new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"></svg>'), "jpg", "image", "image/jpeg");
+    const fakeSave = await officePost("/api/office/photos", galleryForm({ alt: "T-51 check photo", category: "private", src: "", photoUploaded: fake }), editorCookie);
+    if (fakeSave.status !== 400 || fakeSave.body.error !== "Use a JPEG, PNG, or WebP file.") throw new Error(`A fake JPEG upload returned ${fakeSave.status} (${fakeSave.body.error ?? ""}).`);
+    if (await mediaFileExists(fake)) throw new Error("A fake JPEG upload was not deleted.");
+
+    // A refused save deletes the file it uploaded, as T-40 does.
+    const unsaved = await direct(jpegBytes(2048), "jpg", "image", "image/jpeg");
+    const noAlt = await officePost("/api/office/photos", galleryForm({ alt: "", category: "private", src: "", photoUploaded: unsaved }), editorCookie);
+    if (noAlt.status !== 400 || (await mediaFileExists(unsaved))) throw new Error("A refused save kept the file it uploaded.");
+
+    // A Manager naming an uploaded file is refused with 403, and the file is not touched.
+    const kept = await direct(jpegBytes(2048), "jpg", "image", "image/jpeg");
+    if (!shipped) throw new Error("No tour has a shipped photo for the T-51 tour.");
+    const tourAdded = await officePost("/api/office/tours/create", (() => { const form = newTourForm("T-51 Valley", {}); form.set("image", shipped.image); return form; })(), editorCookie);
+    const [tour] = await db.select().from(tours).where(eq(tours.location, "T-51 Valley")).limit(1);
+    if (tourAdded.status !== 200 || !tour) throw new Error("The T-51 tour was not added.");
+    tourId = tour.id;
+    const managerForm = tourForm(tour);
+    managerForm.set("photoUploaded", kept);
+    const managerSave = await officePost("/api/office/tours", managerForm, managerCookie);
+    if (managerSave.status !== 403 || !(await mediaFileExists(kept))) throw new Error(`A Manager's tour save naming an upload returned ${managerSave.status}, or the file was removed.`);
+
+    // A 4.8 MB JPEG and a 9 MB PDF save through the direct upload.
+    const bigPhoto = await direct(jpegBytes(Math.round(4.8 * 1024 * 1024)), "jpg", "image", "image/jpeg");
+    const photoSave = await officePost("/api/office/photos", galleryForm({ alt: "T-51 check photo", category: "private", src: "", photoUploaded: bigPhoto }), editorCookie);
+    const [bigRow] = await db.select().from(photos).where(eq(photos.alt, "T-51 check photo")).limit(1);
+    if (photoSave.status !== 200 || bigRow?.src !== bigPhoto) throw new Error(`A 4.8 MB photo did not save through the direct upload (${photoSave.status} ${photoSave.body.error ?? ""}).`);
+    const pdfBytes = new Uint8Array(9 * 1024 * 1024);
+    pdfBytes.set(new TextEncoder().encode("%PDF-1.7\n"));
+    const bigPdf = await direct(pdfBytes, "pdf", "pdf", "application/pdf");
+    const pdfForm = tourForm(tour);
+    pdfForm.set("pdfFileUploaded", bigPdf);
+    const pdfSave = await officePost("/api/office/tours", pdfForm, editorCookie);
+    const [withPdf] = await db.select({ pdf: tours.pdf }).from(tours).where(eq(tours.id, tour.id)).limit(1);
+    if (pdfSave.status !== 200 || withPdf?.pdf !== bigPdf) throw new Error(`A 9 MB PDF did not save through the direct upload (${pdfSave.status} ${pdfSave.body.error ?? ""}).`);
+  } finally {
+    const [row] = await db.select({ id: photos.id }).from(photos).where(eq(photos.alt, "T-51 check photo")).limit(1);
+    if (row) await officePost("/api/office/photos/delete", galleryForm({ id: String(row.id) }), editorCookie);
+    if (tourId) await officePost("/api/office/tours/delete", formOf({ id: tourId }), editorCookie);
+    await db.delete(photos).where(eq(photos.alt, "T-51 check photo"));
+    await db.delete(tours).where(eq(tours.location, "T-51 Valley"));
+    // Every file this check uploaded is removed, used or not.
+    const left = [];
+    for (const url of sent) if (await mediaFileExists(url)) left.push(url);
+    if (left.length) await del(left, { token: process.env.MEDIA_READ_WRITE_TOKEN });
   }
 }
 

@@ -1,5 +1,6 @@
 import { randomBytes } from "crypto";
-import { del, put } from "@vercel/blob";
+import { del, head, put } from "@vercel/blob";
+import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { canEditContent } from "@/lib/auth/permissions";
 import type { SessionUser } from "@/lib/auth/session";
 import { forbidden, type ActionResult } from "@/lib/http/result";
@@ -79,6 +80,125 @@ function imageKind(bytes: Buffer): "jpg" | "png" | "webp" | null {
 
 function isPdf(bytes: Buffer) {
   return bytes.length >= 5 && bytes.toString("ascii", 0, 5) === "%PDF-";
+}
+
+// T-51 (BR-101 to BR-104): the browser uploads an office file straight to the media store, because
+// Vercel refuses a request over 4.5 MB before the site runs. The site only hands out a short-lived
+// permission for one file, and the save checks the stored file before the record changes.
+export type UploadKind = "image" | "pdf";
+
+const UPLOAD_RULES: Record<UploadKind, { types: string[]; extensions: string[]; maxBytes: number }> = {
+  image: { types: ["image/jpeg", "image/png", "image/webp"], extensions: ["jpg", "png", "webp"], maxBytes: MAX_IMAGE_BYTES },
+  pdf: { types: ["application/pdf"], extensions: ["pdf"], maxBytes: MAX_PDF_BYTES },
+};
+const UPLOAD_MINUTES = 10;
+
+class UploadRefused extends Error {}
+
+function uploadKind(clientPayload: string | null): UploadKind {
+  let kind: unknown = null;
+  try {
+    kind = (JSON.parse(clientPayload ?? "null") as { kind?: unknown } | null)?.kind;
+  } catch {
+    kind = null;
+  }
+  if (kind !== "image" && kind !== "pdf") throw new UploadRefused("Choose a photo or a PDF to upload.");
+  return kind;
+}
+
+// The stored name is media/upload plus a random suffix the browser cannot choose, with no folder.
+function uploadRules(pathname: string, clientPayload: string | null) {
+  const kind = uploadKind(clientPayload);
+  const rules = UPLOAD_RULES[kind];
+  const match = /^media\/upload\.([a-z]+)$/.exec(pathname);
+  if (!match || !rules.extensions.includes(match[1])) {
+    throw new UploadRefused(kind === "image" ? "Use a JPEG, PNG, or WebP file." : "Use a PDF file.");
+  }
+  return {
+    allowedContentTypes: rules.types,
+    maximumSizeInBytes: rules.maxBytes,
+    addRandomSuffix: true,
+    validUntil: Date.now() + UPLOAD_MINUTES * 60 * 1000,
+  };
+}
+
+function isTokenRequest(body: unknown): body is HandleUploadBody {
+  if (!body || typeof body !== "object") return false;
+  const event = body as { type?: unknown; payload?: { pathname?: unknown } };
+  return event.type === "blob.generate-client-token" && typeof event.payload?.pathname === "string";
+}
+
+// POST /api/office/uploads. Only an Owner or an Editor gets a permission. There is no
+// onUploadCompleted: it needs a public callback address, and the save checks the file instead.
+export async function uploadPermissionAs(actor: SessionUser, body: unknown, request: Request) {
+  if (!canEditContent(actor.role)) return { ok: false as const, error: "You cannot upload a file.", status: 403 as const };
+  if (!isTokenRequest(body)) return { ok: false as const, error: "Send the upload again." };
+  try {
+    const reply = await handleUpload({
+      body,
+      request,
+      token: mediaToken(),
+      onBeforeGenerateToken: async (pathname, clientPayload) => uploadRules(pathname, clientPayload),
+    });
+    return { ok: true as const, reply };
+  } catch (error) {
+    if (error instanceof UploadRefused) return { ok: false as const, error: error.message };
+    if (error instanceof Error && error.message === "Storage is not connected.") return { ok: false as const, error: error.message };
+    return { ok: false as const, error: "The upload could not be started." };
+  }
+}
+
+const NOT_IN_STORE = "That file is not in the office media store. Choose it again.";
+// A direct upload is stored as media/upload plus the random suffix addRandomSuffix gives. Older office
+// files are named media/<time>-<hex>, so they can never be taken for a fresh upload.
+const FRESH_UPLOAD_NAME = /^media\/upload-[A-Za-z0-9]+\.(jpg|png|webp|pdf)$/;
+const FRESH_UPLOAD_MINUTES = 15;
+
+// A save that names an uploaded file checks it before the record changes: it is in this store under
+// media/, it is under the size limit, and its first bytes are the kind it claims. The role is checked
+// first, so a role that may not save never touches a stored file. Only a fresh direct upload is
+// accepted: one with the upload name, stored in the last 15 minutes. Any other file, which a record
+// may still use, is refused and never deleted, by this check or by the save's stored list. A fresh
+// upload that fails is the uploader's own, so it is deleted.
+export async function checkUploadedFile(actor: SessionUser, value: string, kind: UploadKind): Promise<string | ActionResult> {
+  if (!canEditContent(actor.role)) return forbidden(kind === "pdf" ? "You cannot edit a tour." : "You cannot edit a photo.");
+  const url = value.trim();
+  const path = officeMediaPath(url);
+  if (!path || !url.startsWith("https://") || !FRESH_UPLOAD_NAME.test(path)) return { ok: false, error: NOT_IN_STORE };
+  const token = mediaToken();
+  let stored: Awaited<ReturnType<typeof head>>;
+  try {
+    stored = await head(path, { token });
+  } catch {
+    return { ok: false, error: NOT_IN_STORE };
+  }
+  // The same path in another store is not this store's file.
+  if (stored.url !== url) return { ok: false, error: NOT_IN_STORE };
+  if (Date.now() - stored.uploadedAt.getTime() > FRESH_UPLOAD_MINUTES * 60 * 1000) return { ok: false, error: NOT_IN_STORE };
+  const rules = UPLOAD_RULES[kind];
+  let refusal = "";
+  if (stored.size > rules.maxBytes) {
+    refusal = kind === "image" ? "The file is larger than 5 MB." : "The file is larger than 10 MB.";
+  } else {
+    let bytes = Buffer.alloc(0);
+    try {
+      const response = await fetch(stored.url, { headers: { Range: "bytes=0-15" }, cache: "no-store" });
+      bytes = Buffer.from(await response.arrayBuffer()).subarray(0, 16);
+    } catch {
+      return { ok: false, error: "The file could not be checked. Save again." };
+    }
+    if (kind === "image" && !imageKind(bytes)) refusal = "Use a JPEG, PNG, or WebP file.";
+    if (kind === "pdf" && !isPdf(bytes)) refusal = "Use a PDF file.";
+  }
+  if (refusal) {
+    try {
+      await del(path, { token });
+    } catch {
+      // The refusal is the answer the office needs. A file that could not be removed stays.
+    }
+    return { ok: false, error: refusal };
+  }
+  return stored.url;
 }
 
 function fileName(kind: string) {

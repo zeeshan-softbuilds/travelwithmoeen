@@ -9,12 +9,12 @@ import { lines, photoStyle, rememberSaved } from "@/components/office/content/me
 import { FileField } from "@/components/office/content/PhotoField";
 import { RepeatItem, useKeyedList } from "@/components/office/content/Repeat";
 import { SaveBar } from "@/components/office/content/SaveBar";
+import { postOfficeFormWithUploads } from "@/components/office/content/uploads";
 import { Badge } from "@/components/office/ui/Badge";
 import { Button } from "@/components/office/ui/Button";
 import { Card } from "@/components/office/ui/Card";
 import { Field } from "@/components/office/ui/Field";
 import { Icon } from "@/components/office/ui/Icon";
-import { postOfficeForm } from "@/lib/http/office-client";
 import type { ActionResult } from "@/lib/http/result";
 import type { Tour } from "@/data/tours";
 
@@ -63,7 +63,7 @@ export function TourForm({
   );
   const savePath = mode === "create" ? "/api/office/tours/create" : "/api/office/tours";
   const [state, action, pending] = useActionState(async (previous: ActionResult | null, formData: FormData) => {
-    const result = await postOfficeForm(savePath, formData);
+    const result = await postOfficeFormWithUploads(savePath, formData);
     if (result.ok) {
       rememberSaved(result.message ?? "Tour saved.");
       if (result.href) window.location.assign(result.href);

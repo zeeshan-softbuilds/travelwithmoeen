@@ -8,9 +8,9 @@ import { rememberSaved } from "@/components/office/content/media";
 import { FileField } from "@/components/office/content/PhotoField";
 import { Stars } from "@/components/office/content/RecordList";
 import { SaveBar } from "@/components/office/content/SaveBar";
+import { postOfficeFormWithUploads } from "@/components/office/content/uploads";
 import { Card } from "@/components/office/ui/Card";
 import { Field } from "@/components/office/ui/Field";
-import { postOfficeForm } from "@/lib/http/office-client";
 import type { ActionResult } from "@/lib/http/result";
 import type { Testimonial } from "@/data/testimonials";
 
@@ -20,7 +20,7 @@ export function ReviewForm({ review, frame, savedBy }: { review: Testimonial | n
   const [rating, setRating] = useState(String(review?.rating ?? 5));
   const [avatar, setAvatar] = useState(review?.avatar ?? "");
   const [state, action, pending] = useActionState(async (previous: ActionResult | null, formData: FormData) => {
-    const result = await postOfficeForm("/api/office/reviews", formData);
+    const result = await postOfficeFormWithUploads("/api/office/reviews", formData);
     if (result.ok) {
       rememberSaved(result.message ?? "Review saved.");
       if (review) window.location.reload();

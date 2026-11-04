@@ -7,9 +7,9 @@ import type { EditorFrame } from "@/components/office/content/frame";
 import { photoStyle, rememberSaved } from "@/components/office/content/media";
 import { FileField } from "@/components/office/content/PhotoField";
 import { SaveBar } from "@/components/office/content/SaveBar";
+import { postOfficeFormWithUploads } from "@/components/office/content/uploads";
 import { Card } from "@/components/office/ui/Card";
 import { Field } from "@/components/office/ui/Field";
-import { postOfficeForm } from "@/lib/http/office-client";
 import type { ActionResult } from "@/lib/http/result";
 import type { HomeSlide } from "@/lib/content-types";
 
@@ -19,7 +19,7 @@ export function SlideForm({ slide, position, frame, savedBy }: { slide: HomeSlid
   const [image, setImage] = useState(slide?.image ?? "");
   const [chosenPreview, setChosenPreview] = useState("");
   const [state, action, pending] = useActionState(async (previous: ActionResult | null, formData: FormData) => {
-    const result = await postOfficeForm("/api/office/slides", formData);
+    const result = await postOfficeFormWithUploads("/api/office/slides", formData);
     if (result.ok) {
       rememberSaved(result.message ?? "Slide saved.");
       if (slide) window.location.reload();

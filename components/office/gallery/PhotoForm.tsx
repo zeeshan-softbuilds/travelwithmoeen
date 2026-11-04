@@ -7,9 +7,9 @@ import type { EditorFrame } from "@/components/office/content/frame";
 import { photoStyle, rememberSaved } from "@/components/office/content/media";
 import { FileField } from "@/components/office/content/PhotoField";
 import { SaveBar } from "@/components/office/content/SaveBar";
+import { postOfficeFormWithUploads } from "@/components/office/content/uploads";
 import { Card } from "@/components/office/ui/Card";
 import { Field } from "@/components/office/ui/Field";
-import { postOfficeForm } from "@/lib/http/office-client";
 import type { ActionResult } from "@/lib/http/result";
 import type { GalleryImage } from "@/data/gallery";
 
@@ -18,7 +18,7 @@ export function PhotoForm({ photo, frame, savedBy }: { photo: GalleryImage | nul
   const [chosenPreview, setChosenPreview] = useState("");
   const [alt, setAlt] = useState(photo?.alt ?? "");
   const [state, action, pending] = useActionState(async (previous: ActionResult | null, formData: FormData) => {
-    const result = await postOfficeForm("/api/office/photos", formData);
+    const result = await postOfficeFormWithUploads("/api/office/photos", formData);
     if (result.ok) {
       rememberSaved(result.message ?? "Photo saved.");
       if (photo) window.location.reload();

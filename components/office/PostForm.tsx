@@ -7,10 +7,10 @@ import { photoStyle, rememberSaved } from "@/components/office/content/media";
 import { FileField } from "@/components/office/content/PhotoField";
 import { SaveBar } from "@/components/office/content/SaveBar";
 import { SectionsEditor } from "@/components/office/content/SectionsEditor";
+import { postOfficeFormWithUploads } from "@/components/office/content/uploads";
 import { Card } from "@/components/office/ui/Card";
 import { Field } from "@/components/office/ui/Field";
 import { Icon } from "@/components/office/ui/Icon";
-import { postOfficeForm } from "@/lib/http/office-client";
 import type { ActionResult } from "@/lib/http/result";
 import type { Blog } from "@/data/blog";
 
@@ -27,7 +27,7 @@ export function PostForm({ post, frame, savedBy }: { post: Blog; frame: EditorFr
   const [cover, setCover] = useState(post.coverImage);
   const [coverPreview, setCoverPreview] = useState("");
   const [state, action, pending] = useActionState(async (previous: ActionResult | null, formData: FormData) => {
-    const result = await postOfficeForm("/api/office/posts", formData);
+    const result = await postOfficeFormWithUploads("/api/office/posts", formData);
     if (result.ok) {
       rememberSaved(result.message ?? "Post saved.");
       window.location.reload();
