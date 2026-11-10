@@ -46,9 +46,9 @@ export function UsersPanel({ users, selfId }: { users: OfficeUserRow[]; selfId: 
   const [pending, start] = useTransition();
 
   // Calls an existing users route. The server checks the role and the last-Owner rule.
-  const send = (path: string, form: FormData, after: () => void) =>
+  const send = (path: string, form: FormData, label: string, after: () => void) =>
     start(async () => {
-      const result = await postOfficeForm(path, form);
+      const result = await postOfficeForm(path, form, label);
       if (!result.ok) {
         setNotice({ tone: "danger", text: result.error });
         return;
@@ -59,7 +59,7 @@ export function UsersPanel({ users, selfId }: { users: OfficeUserRow[]; selfId: 
     });
 
   const create = (form: FormData) =>
-    send("/api/office/users", form, () => {
+    send("/api/office/users", form, "Adding user", () => {
       setCreating(false);
       setShowPassword(false);
     });
@@ -68,13 +68,13 @@ export function UsersPanel({ users, selfId }: { users: OfficeUserRow[]; selfId: 
     const form = new FormData();
     form.set("userId", String(user.id));
     form.set("role", roles[user.id]);
-    send("/api/office/users/role", form, () => setRoles((current) => withoutUser(current, user.id)));
+    send("/api/office/users/role", form, "Saving role", () => setRoles((current) => withoutUser(current, user.id)));
   };
 
   const remove = (user: OfficeUserRow) => {
     const form = new FormData();
     form.set("userId", String(user.id));
-    send("/api/office/users/remove", form, () => setRemoving(null));
+    send("/api/office/users/remove", form, "Removing user", () => setRemoving(null));
   };
 
   return (

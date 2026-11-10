@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useActionState } from "react";
+import { submitTo } from "@/components/office/content/after-save";
 import { SaveBar } from "@/components/office/content/SaveBar";
 import { Card } from "@/components/office/ui/Card";
 import { Field } from "@/components/office/ui/Field";
@@ -19,14 +20,15 @@ const SOCIAL: { name: keyof SiteSettings; label: string }[] = [
 export function SiteForm({ settings }: { settings: SiteSettings }) {
   const router = useRouter();
   const [state, action, pending] = useActionState(async (previous: ActionResult | null, formData: FormData) => {
-    const result = await officeFormAction("/api/office/site")(previous, formData);
+    const result = await officeFormAction("/api/office/site", { label: "Saving site details" })(previous, formData);
     // The page reads the saved details and "Last saved" again.
     if (result.ok) router.refresh();
     return result;
   }, null as ActionResult | null);
 
   return (
-    <form action={action} className="stack">
+    <form onSubmit={submitTo(action)} className="stack" aria-busy={pending || undefined}>
+      <fieldset className="form-lock" disabled={pending}>
       <Card title="Contact" description="Shown in the website header and footer.">
         <div className="form-grid">
           <Field id="site-phone" label="Phone" help="As guests should see it.">
@@ -58,6 +60,7 @@ export function SiteForm({ settings }: { settings: SiteSettings }) {
           ))}
         </div>
       </Card>
+      </fieldset>
       <SaveBar label="Save site details" pending={pending} result={state} />
     </form>
   );

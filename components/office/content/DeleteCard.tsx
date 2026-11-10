@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Alert } from "@/components/office/ui/Alert";
 import { Button } from "@/components/office/ui/Button";
 import { Icon } from "@/components/office/ui/Icon";
-import { rememberSaved } from "@/components/office/content/media";
+import { useAfterSave } from "@/components/office/content/after-save";
 import { postOfficeForm } from "@/lib/http/office-client";
 
 type DeleteCardProps = {
@@ -22,18 +22,19 @@ export function DeleteCard({ title, body, buttonLabel, path, id, goTo }: DeleteC
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState("");
   const [pending, start] = useTransition();
+  const after = useAfterSave();
 
   const confirm = () =>
     start(async () => {
       const form = new FormData();
       form.set("id", String(id));
-      const result = await postOfficeForm(path, form);
+      // The office top bar says what is working, such as "Remove photo…" (BR-98).
+      const result = await postOfficeForm(path, form, buttonLabel);
       if (!result.ok) {
         setError(result.error);
         return;
       }
-      rememberSaved(result.message ?? "Deleted.");
-      window.location.assign(goTo);
+      after.go(goTo, result.message ?? "Deleted.", { scroll: false });
     });
 
   return (

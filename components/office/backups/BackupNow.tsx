@@ -15,7 +15,7 @@ export function BackupNow() {
 
   const run = () =>
     start(async () => {
-      const outcome = await postOfficeForm("/api/office/backup", new FormData());
+      const outcome = await postOfficeForm("/api/office/backup", new FormData(), "Making a backup");
       setResult(outcome);
       if (outcome.ok) router.refresh();
     });

@@ -1,3 +1,4 @@
+import { editorKey } from "@/components/office/content/editor-key";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { frameFor } from "@/components/office/content/frame";
@@ -71,7 +72,7 @@ export async function ToursScreen({ openId }: { openId?: string }) {
       />
       {open ? (
         <TourForm
-          key={open.id}
+          key={editorKey(open.id, open)}
           tour={open}
           savedBy={savedBy}
           canDelete={user.canDeleteTour}

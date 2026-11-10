@@ -5,11 +5,13 @@ import { useActionState, useState } from "react";
 import { DeleteCard } from "@/components/office/content/DeleteCard";
 import { EditorDrawer } from "@/components/office/content/EditorDrawer";
 import type { EditorFrame } from "@/components/office/content/frame";
-import { lines, photoStyle, rememberSaved } from "@/components/office/content/media";
+import { lines, photoStyle } from "@/components/office/content/media";
 import { FileField } from "@/components/office/content/PhotoField";
 import { RepeatItem, useKeyedList } from "@/components/office/content/Repeat";
 import { SaveBar } from "@/components/office/content/SaveBar";
-import { postOfficeFormWithUploads } from "@/components/office/content/uploads";
+import { submitTo, useAfterSave } from "@/components/office/content/after-save";
+import { UploadProgress } from "@/components/office/content/UploadProgress";
+import { postOfficeFormWithUploads, useUploadProgress } from "@/components/office/content/uploads";
 import { Badge } from "@/components/office/ui/Badge";
 import { Button } from "@/components/office/ui/Button";
 import { Card } from "@/components/office/ui/Card";
@@ -62,12 +64,15 @@ export function TourForm({
     tour.itinerary.map((day) => ({ title: day.title, description: day.description, highlights: day.highlights.join("\n") })),
   );
   const savePath = mode === "create" ? "/api/office/tours/create" : "/api/office/tours";
+  const after = useAfterSave();
+  const uploads = useUploadProgress();
   const [state, action, pending] = useActionState(async (previous: ActionResult | null, formData: FormData) => {
-    const result = await postOfficeFormWithUploads(savePath, formData);
+    const result = await postOfficeFormWithUploads(savePath, formData, uploads.begin(mode === "create" ? "Adding tour" : "Saving tour"));
     if (result.ok) {
-      rememberSaved(result.message ?? "Tour saved.");
-      if (result.href) window.location.assign(result.href);
-      else window.location.reload();
+      const message = result.message ?? "Tour saved.";
+      // Adding a tour opens its new page with the page-move bar (BR-99).
+      if (result.href) after.go(result.href, message);
+      else after.stay(message, `tour:${tour.id}`);
     }
     return result;
   }, null as ActionResult | null);
@@ -82,7 +87,8 @@ export function TourForm({
 
   const form = (
     <>
-      <form action={action} className="stack">
+      <form onSubmit={submitTo(action)} className="stack" aria-busy={pending || undefined}>
+        <fieldset className="form-lock" disabled={pending}>
         {mode === "edit" ? <input type="hidden" name="id" value={tour.id} /> : null}
         <input type="hidden" name="itinerary" value={JSON.stringify(itinerary)} />
         <input type="hidden" name="placeSet" value="1" />
@@ -234,7 +240,11 @@ export function TourForm({
           </label>
         </Card>
 
-        <SaveBar label={mode === "create" ? "Add tour" : "Save tour"} pending={pending} result={state} />
+        </fieldset>
+
+        <UploadProgress progress={uploads.progress} onCancel={uploads.cancel} />
+
+        <SaveBar label={mode === "create" ? "Add tour" : "Save tour"} pending={pending} result={state} scope={`tour:${tour.id}`} />
       </form>
 
       {mode === "edit" && canDelete ? (

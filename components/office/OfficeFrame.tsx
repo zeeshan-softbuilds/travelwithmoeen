@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Fragment, useEffect, useRef, useState } from "react";
+import { OfficeBusy } from "@/components/office/OfficeBusy";
+import { OfficePlaceholder } from "@/components/office/OfficePlaceholder";
 import { SignOutButton } from "@/components/office/SignOutButton";
 import {
   ROLE_NAME,
@@ -13,6 +15,7 @@ import {
 } from "@/components/office/office-nav";
 import { Button } from "@/components/office/ui/Button";
 import { Icon } from "@/components/office/ui/Icon";
+import { usePendingPath } from "@/components/ui/NavigationProgress";
 import type { Role } from "@/lib/http/result";
 
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
@@ -55,6 +58,12 @@ export function OfficeFrame({ email, role, nav, newLinks, newRequestCount, start
     setNavOpen(false);
     setOpenMenu(null);
   }
+
+  // T-50 (BR-96): while a move to another office page takes longer than 150 milliseconds, the
+  // placeholder blocks stand in for the page. The page stays mounted, hidden, in case the move stops.
+  // An editor link that only changes ?edit= keeps the page as it is.
+  const pendingPath = usePendingPath();
+  const loadingPage = Boolean(pendingPath && pendingPath.startsWith("/office") && pendingPath !== pathname);
 
   const currentLabel = nav.flatMap((group) => group.links).find((link) => isCurrentOfficeLink(link.href, pathname))?.label ?? "Office";
 
@@ -222,6 +231,7 @@ export function OfficeFrame({ email, role, nav, newLinks, newRequestCount, start
             </Button>
             <span className="topbar-title">{currentLabel}</span>
             <span className="spacer" />
+            <OfficeBusy />
             {newLinks.length > 0 ? (
               <div className="pop-wrap" ref={newWrapRef}>
                 <Button
@@ -245,8 +255,11 @@ export function OfficeFrame({ email, role, nav, newLinks, newRequestCount, start
               </div>
             ) : null}
           </header>
-          <main id="main" className="main" tabIndex={-1}>
-            {children}
+          <main id="main" className="main" tabIndex={-1} aria-busy={loadingPage || undefined}>
+            {loadingPage ? <OfficePlaceholder /> : null}
+            <div className="main-page" hidden={loadingPage}>
+              {children}
+            </div>
           </main>
         </div>
       </div>

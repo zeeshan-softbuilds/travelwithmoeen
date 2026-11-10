@@ -4,10 +4,12 @@ import { useActionState, useState } from "react";
 import { DeleteCard } from "@/components/office/content/DeleteCard";
 import { EditorDrawer } from "@/components/office/content/EditorDrawer";
 import type { EditorFrame } from "@/components/office/content/frame";
-import { photoStyle, rememberSaved } from "@/components/office/content/media";
+import { photoStyle } from "@/components/office/content/media";
 import { FileField } from "@/components/office/content/PhotoField";
 import { SaveBar } from "@/components/office/content/SaveBar";
-import { postOfficeFormWithUploads } from "@/components/office/content/uploads";
+import { submitTo, useAfterSave } from "@/components/office/content/after-save";
+import { UploadProgress } from "@/components/office/content/UploadProgress";
+import { postOfficeFormWithUploads, useUploadProgress } from "@/components/office/content/uploads";
 import { Card } from "@/components/office/ui/Card";
 import { Field } from "@/components/office/ui/Field";
 import type { ActionResult } from "@/lib/http/result";
@@ -17,12 +19,14 @@ export function PhotoForm({ photo, frame, savedBy }: { photo: GalleryImage | nul
   const [src, setSrc] = useState(photo?.src ?? "");
   const [chosenPreview, setChosenPreview] = useState("");
   const [alt, setAlt] = useState(photo?.alt ?? "");
+  const after = useAfterSave();
+  const uploads = useUploadProgress();
   const [state, action, pending] = useActionState(async (previous: ActionResult | null, formData: FormData) => {
-    const result = await postOfficeFormWithUploads("/api/office/photos", formData);
+    const result = await postOfficeFormWithUploads("/api/office/photos", formData, uploads.begin(photo ? "Saving photo" : "Adding photo"));
     if (result.ok) {
-      rememberSaved(result.message ?? "Photo saved.");
-      if (photo) window.location.reload();
-      else window.location.assign(frame.closeHref);
+      const message = result.message ?? "Photo saved.";
+      if (photo) after.stay(message, `photo:${photo.id}`);
+      else after.go(frame.closeHref, message, { scroll: false });
     }
     return result;
   }, null as ActionResult | null);
@@ -48,7 +52,8 @@ export function PhotoForm({ photo, frame, savedBy }: { photo: GalleryImage | nul
       viewHref={photo ? "/gallery" : undefined}
       preview={preview}
     >
-      <form action={action} className="stack">
+      <form onSubmit={submitTo(action)} className="stack" aria-busy={pending || undefined}>
+        <fieldset className="form-lock" disabled={pending}>
         {photo ? <input type="hidden" name="id" value={photo.id} /> : null}
         <Card title="Photo">
           <FileField label={photo ? "Replace photo" : "Photo"} pathName="src" fileName="photo" value={src} onChange={setSrc} onFile={setChosenPreview} />
@@ -85,7 +90,9 @@ export function PhotoForm({ photo, frame, savedBy }: { photo: GalleryImage | nul
             </span>
           </label>
         </Card>
-        <SaveBar label={photo ? "Save photo" : "Add photo"} pending={pending} result={state} />
+        </fieldset>
+        <UploadProgress progress={uploads.progress} onCancel={uploads.cancel} />
+        <SaveBar label={photo ? "Save photo" : "Add photo"} pending={pending} result={state} scope={photo ? `photo:${photo.id}` : undefined} />
       </form>
       {photo ? (
         <DeleteCard

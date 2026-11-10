@@ -1,3 +1,4 @@
+import { editorKey } from "@/components/office/content/editor-key";
 import { notFound, redirect } from "next/navigation";
 import { frameFor } from "@/components/office/content/frame";
 import { RecordList, type ListRecord } from "@/components/office/content/RecordList";
@@ -44,7 +45,7 @@ export async function BlogScreen({ openSlug }: { openSlug?: string }) {
           { value: "name:asc", label: "Title, A to Z" },
         ]}
       />
-      {open ? <PostForm key={open.slug} post={open} savedBy={savedBy} frame={frameFor(posts, index, "/office/blog", (post) => hrefOf(post.slug))} /> : null}
+      {open ? <PostForm key={editorKey(open.slug, open)} post={open} savedBy={savedBy} frame={frameFor(posts, index, "/office/blog", (post) => hrefOf(post.slug))} /> : null}
     </>
   );
 }

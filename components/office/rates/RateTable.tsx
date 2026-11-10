@@ -120,7 +120,7 @@ export function RateTable({ kind, noun, columns, rows, filters = [], searchLabel
             form.set(column.key, String(value));
           }
         }
-        const result = await postOfficeForm("/api/office/rates", form);
+        const result = await postOfficeForm("/api/office/rates", form, "Saving rates");
         if (result.ok) savedCount += 1;
         else failed[id] = result.error;
       }

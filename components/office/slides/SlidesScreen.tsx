@@ -1,3 +1,4 @@
+import { editorKey } from "@/components/office/content/editor-key";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { frameFor } from "@/components/office/content/frame";
@@ -51,7 +52,7 @@ export async function SlidesScreen({ edit }: { edit?: string }) {
       <RecordList records={records} currentKey={open ? String(open.id) : undefined} searchLabel="Search slides" noun="slides" emptyIcon="slides" emptyTitle="No slides yet" />
       {open || isNew ? (
         <SlideForm
-          key={edit}
+          key={editorKey(edit ?? "", open)}
           slide={open}
           savedBy={savedBy}
           position={open ? index + 1 : slides.length + 1}

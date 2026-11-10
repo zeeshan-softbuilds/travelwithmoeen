@@ -4,11 +4,12 @@ import { useActionState, useState } from "react";
 import { DeleteCard } from "@/components/office/content/DeleteCard";
 import { EditorDrawer } from "@/components/office/content/EditorDrawer";
 import type { EditorFrame } from "@/components/office/content/frame";
-import { rememberSaved } from "@/components/office/content/media";
 import { FileField } from "@/components/office/content/PhotoField";
 import { Stars } from "@/components/office/content/RecordList";
 import { SaveBar } from "@/components/office/content/SaveBar";
-import { postOfficeFormWithUploads } from "@/components/office/content/uploads";
+import { submitTo, useAfterSave } from "@/components/office/content/after-save";
+import { UploadProgress } from "@/components/office/content/UploadProgress";
+import { postOfficeFormWithUploads, useUploadProgress } from "@/components/office/content/uploads";
 import { Card } from "@/components/office/ui/Card";
 import { Field } from "@/components/office/ui/Field";
 import type { ActionResult } from "@/lib/http/result";
@@ -19,12 +20,14 @@ export function ReviewForm({ review, frame, savedBy }: { review: Testimonial | n
   const [text, setText] = useState(review?.text ?? "");
   const [rating, setRating] = useState(String(review?.rating ?? 5));
   const [avatar, setAvatar] = useState(review?.avatar ?? "");
+  const after = useAfterSave();
+  const uploads = useUploadProgress();
   const [state, action, pending] = useActionState(async (previous: ActionResult | null, formData: FormData) => {
-    const result = await postOfficeFormWithUploads("/api/office/reviews", formData);
+    const result = await postOfficeFormWithUploads("/api/office/reviews", formData, uploads.begin(review ? "Saving review" : "Adding review"));
     if (result.ok) {
-      rememberSaved(result.message ?? "Review saved.");
-      if (review) window.location.reload();
-      else window.location.assign(frame.closeHref);
+      const message = result.message ?? "Review saved.";
+      if (review) after.stay(message, `review:${review.id}`);
+      else after.go(frame.closeHref, message, { scroll: false });
     }
     return result;
   }, null as ActionResult | null);
@@ -51,7 +54,8 @@ export function ReviewForm({ review, frame, savedBy }: { review: Testimonial | n
       viewHref={review ? "/" : undefined}
       preview={preview}
     >
-      <form action={action} className="stack">
+      <form onSubmit={submitTo(action)} className="stack" aria-busy={pending || undefined}>
+        <fieldset className="form-lock" disabled={pending}>
         {review ? <input type="hidden" name="id" value={review.id} /> : null}
         <Card title="Review">
           <div className="form-grid">
@@ -79,7 +83,9 @@ export function ReviewForm({ review, frame, savedBy }: { review: Testimonial | n
           </div>
           <FileField label="Guest photo" pathName="avatar" fileName="avatarPhoto" value={avatar} onChange={setAvatar} removeLabel="Clear photo" />
         </Card>
-        <SaveBar label={review ? "Save review" : "Add review"} pending={pending} result={state} />
+        </fieldset>
+        <UploadProgress progress={uploads.progress} onCancel={uploads.cancel} />
+        <SaveBar label={review ? "Save review" : "Add review"} pending={pending} result={state} scope={review ? `review:${review.id}` : undefined} />
       </form>
       {review ? (
         <DeleteCard title="Remove this review" body="It disappears from the home page." buttonLabel="Remove review" path="/api/office/reviews/delete" id={review.id} goTo={frame.closeHref} />

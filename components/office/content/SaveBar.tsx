@@ -10,19 +10,22 @@ type SaveBarProps = {
   pending: boolean;
   result: ActionResult | null;
   hint?: string;
+  // The editor's own scope for the message its save left, such as "photo:12" (T-50).
+  scope?: string;
 };
 
 // Sticks to the bottom of the form. It shows the last save result, or the message a save left
-// before the page reloaded.
-export function SaveBar({ label, pending, result, hint = "Changes go live when you save." }: SaveBarProps) {
+// before the editor opened again with the saved data.
+export function SaveBar({ label, pending, result, hint = "Changes go live when you save.", scope = "" }: SaveBarProps) {
   const [savedBefore, setSavedBefore] = useState<string | null>(null);
 
   useEffect(() => {
-    const message = takeSavedMessage();
+    // Its own message first, then one left for whichever page opens next, such as a new tour.
+    const message = takeSavedMessage(scope) ?? (scope ? takeSavedMessage() : null);
     // Read once after the reload. Storage is only in the browser, so this cannot run during render.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (message) setSavedBefore(message);
-  }, []);
+  }, [scope]);
 
   let message = <span className="sb-msg">{hint}</span>;
   if (pending) {

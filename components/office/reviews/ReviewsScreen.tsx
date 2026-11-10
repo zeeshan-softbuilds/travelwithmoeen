@@ -1,3 +1,4 @@
+import { editorKey } from "@/components/office/content/editor-key";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { frameFor } from "@/components/office/content/frame";
@@ -64,7 +65,7 @@ export async function ReviewsScreen({ edit }: { edit?: string }) {
           { value: "rating:asc", label: "Lowest rating" },
         ]}
       />
-      {open || isNew ? <ReviewForm key={edit} review={open} savedBy={savedBy} frame={frameFor(reviews, index, LIST, (review) => hrefOf(review.id))} /> : null}
+      {open || isNew ? <ReviewForm key={editorKey(edit ?? "", open)} review={open} savedBy={savedBy} frame={frameFor(reviews, index, LIST, (review) => hrefOf(review.id))} /> : null}
     </>
   );
 }
