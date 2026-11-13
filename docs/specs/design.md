@@ -458,3 +458,13 @@ On 5 November 2026 Vercel suspended all four TWM Blob stores, the preview and pr
 - **Clean up.** Every file the check uploads is deleted in a `finally`, so a failed run leaves nothing in `.local-blob/`.
 - **`.env.example`.** It gives the local values above, with a comment that a Vercel token never goes in a local `.env`.
 - **What only the preview site can show.** Vercel's 4.5 MB request limit, and the real store. The 4.8 MB photo and 9 MB PDF check on the preview site stays, once the TWM stores are back.
+
+## 14b. Fewer Blob operations, T-57
+
+The TWM team moved to the Vercel Pro plan on 13 November 2026 after the Hobby limits stopped the Blob stores on 5 November. Each Blob operation now counts against the plan, so the site does not repeat one it does not need.
+
+- **Backup list.** The office dashboard shows the last backup to the Owner, and the Backups page lists them. Both read the list through one cached function in `lib/office/backup.ts`, made with `unstable_cache`, tag `office-backups`, kept for 6 hours. The backups change only when `runBackup` saves one, from Back up now or the nightly run, so `runBackup` clears the tag with `revalidateTag("office-backups", { expire: 0 })` and the next visit lists the store again.
+- **What is cached.** `unstable_cache` stores JSON, so a `Date` comes back as text. The cached function returns each backup as its name, size, and `uploadedAt` as an ISO string, already sorted newest first.
+- **Role checks.** The cache holds only the file list. The Owner check in `listBackupsAs` runs on every request, outside the cache.
+- **Downloads.** `readBackupAs` still reads the chosen file each time. A download is rare and is not cached.
+- **Testing.** Local runs use the stand-in in section 14a, never a Vercel store. To see the backup list locally, set `BLOB_READ_WRITE_TOKEN` to the stand-in token for that check only, and leave it empty for `check-step3`, whose guard refuses it.
