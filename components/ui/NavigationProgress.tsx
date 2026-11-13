@@ -54,6 +54,13 @@ function stopNavigationProgress() {
   emit();
 }
 
+// Call this when a click on a link was stopped, such as Cancel on "Leave without saving?". The bar
+// starts on the click before a leave question runs, so without this it would keep running, and the
+// office would hide the page behind its placeholder, until the 15-second give-up.
+export function cancelNavigationProgress() {
+  stopNavigationProgress();
+}
+
 // The path of a move to another page that has taken longer than 150 milliseconds, or null. The
 // office shows its placeholder blocks while it waits for that page (BR-96).
 export function usePendingPath() {

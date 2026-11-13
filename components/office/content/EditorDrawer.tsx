@@ -6,6 +6,7 @@ import { useState } from "react";
 import { buttonClass } from "@/components/office/ui/Button";
 import { Drawer } from "@/components/office/ui/Drawer";
 import { Icon } from "@/components/office/ui/Icon";
+import { cancelNavigationProgress } from "@/components/ui/NavigationProgress";
 
 const LEAVE_QUESTION = "Leave without saving? Your changes will be lost.";
 
@@ -33,8 +34,12 @@ export function EditorDrawer({ title, description, badge, closeHref, previousHre
   const [dirty, setDirty] = useState(false);
 
   const mayLeave = () => !dirty || window.confirm(LEAVE_QUESTION);
+  // Previous and Next are links, so the page-move bar has already started when the question shows.
+  // Cancel stops it as well as the move.
   const guard = (event: React.MouseEvent) => {
-    if (!mayLeave()) event.preventDefault();
+    if (mayLeave()) return;
+    event.preventDefault();
+    cancelNavigationProgress();
   };
 
   const toolbar = (
