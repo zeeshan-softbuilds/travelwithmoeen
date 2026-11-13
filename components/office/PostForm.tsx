@@ -3,11 +3,13 @@
 import { useActionState, useState } from "react";
 import { EditorDrawer } from "@/components/office/content/EditorDrawer";
 import type { EditorFrame } from "@/components/office/content/frame";
-import { photoStyle, rememberSaved } from "@/components/office/content/media";
+import { photoStyle } from "@/components/office/content/media";
 import { FileField } from "@/components/office/content/PhotoField";
 import { SaveBar } from "@/components/office/content/SaveBar";
 import { SectionsEditor } from "@/components/office/content/SectionsEditor";
-import { postOfficeFormWithUploads } from "@/components/office/content/uploads";
+import { submitTo, useAfterSave } from "@/components/office/content/after-save";
+import { UploadProgress } from "@/components/office/content/UploadProgress";
+import { postOfficeFormWithUploads, useUploadProgress } from "@/components/office/content/uploads";
 import { Card } from "@/components/office/ui/Card";
 import { Field } from "@/components/office/ui/Field";
 import { Icon } from "@/components/office/ui/Icon";
@@ -26,12 +28,11 @@ export function PostForm({ post, frame, savedBy }: { post: Blog; frame: EditorFr
   const [author, setAuthor] = useState(post.author);
   const [cover, setCover] = useState(post.coverImage);
   const [coverPreview, setCoverPreview] = useState("");
+  const after = useAfterSave();
+  const uploads = useUploadProgress();
   const [state, action, pending] = useActionState(async (previous: ActionResult | null, formData: FormData) => {
-    const result = await postOfficeFormWithUploads("/api/office/posts", formData);
-    if (result.ok) {
-      rememberSaved(result.message ?? "Post saved.");
-      window.location.reload();
-    }
+    const result = await postOfficeFormWithUploads("/api/office/posts", formData, uploads.begin("Saving post"));
+    if (result.ok) after.stay(result.message ?? "Post saved.", `post:${post.slug}`);
     return result;
   }, null as ActionResult | null);
 
@@ -62,7 +63,8 @@ export function PostForm({ post, frame, savedBy }: { post: Blog; frame: EditorFr
       sections={SECTIONS}
       preview={preview}
     >
-      <form action={action} className="stack">
+      <form onSubmit={submitTo(action)} className="stack" aria-busy={pending || undefined}>
+        <fieldset className="form-lock" disabled={pending}>
         <input type="hidden" name="slug" value={post.slug} />
         <Card id="post-basics" title="Basics">
           <div className="form-grid">
@@ -98,7 +100,11 @@ export function PostForm({ post, frame, savedBy }: { post: Blog; frame: EditorFr
           <SectionsEditor sections={post.content} />
         </Card>
 
-        <SaveBar label="Save post" pending={pending} result={state} />
+        </fieldset>
+
+        <UploadProgress progress={uploads.progress} onCancel={uploads.cancel} />
+
+        <SaveBar label="Save post" pending={pending} result={state} scope={`post:${post.slug}`} />
       </form>
     </EditorDrawer>
   );

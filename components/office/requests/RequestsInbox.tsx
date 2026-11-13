@@ -102,12 +102,12 @@ export function RequestsInbox({ rows, now, canUpdateStatus, canDelete, initialSt
   };
 
   // Resolves true when the server saved it. The server checks the role on every call.
-  const send = (path: string, fields: Record<string, string>, done: string, after?: () => void) =>
+  const send = (path: string, fields: Record<string, string>, done: string, label: string, after?: () => void) =>
     new Promise<boolean>((resolve) => {
       const form = new FormData();
       for (const [name, value] of Object.entries(fields)) form.set(name, value);
       startSaving(async () => {
-        const result = await postOfficeForm(path, form);
+        const result = await postOfficeForm(path, form, label);
         if (!result.ok) {
           setNotice({ tone: "danger", text: result.error });
           resolve(false);
@@ -121,10 +121,10 @@ export function RequestsInbox({ rows, now, canUpdateStatus, canDelete, initialSt
     });
 
   const saveStatus = (id: number, next: RequestStatus) =>
-    send("/api/office/requests/status", { id: String(id), status: next }, `Status saved: ${STATUS_LABEL[next]}.`);
+    send("/api/office/requests/status", { id: String(id), status: next }, `Status saved: ${STATUS_LABEL[next]}.`, "Moving request");
 
   const deleteRequest = (id: number) =>
-    send("/api/office/requests/delete", { id: String(id) }, "Request deleted.", () => {
+    send("/api/office/requests/delete", { id: String(id) }, "Request deleted.", "Deleting request", () => {
       setSelectedId(null);
       writeAddress(status, null);
     });

@@ -194,7 +194,7 @@ export function QuoteScreen({ places, vehicles, margin }: QuoteScreenProps) {
         form.set(name, value);
       }
     }
-    startSaving(async () => setSaved(await postOfficeForm("/api/office/rates", form)));
+    startSaving(async () => setSaved(await postOfficeForm("/api/office/rates", form, "Saving quote")));
   };
 
   const result = priced && "result" in priced ? priced.result : null;
@@ -235,7 +235,8 @@ export function QuoteScreen({ places, vehicles, margin }: QuoteScreenProps) {
   );
 
   return (
-    <form onSubmit={submit} className="stack">
+    <form onSubmit={submit} className="stack" aria-busy={saving || undefined}>
+      <fieldset className="form-lock" disabled={saving}>
       <div className="quote-form">
         <div className="quote-side">
           <Card title="Trip" description="The starting quote uses one hotel rate on every night and one vehicle on every day.">
@@ -443,6 +444,7 @@ export function QuoteScreen({ places, vehicles, margin }: QuoteScreenProps) {
           </div>
         </section>
       </div>
+      </fieldset>
       <SaveBar label="Save quote" pending={saving} result={saved} hint="Saving keeps this quote with its nights and days." />
     </form>
   );

@@ -1,6 +1,8 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useActionState, useState } from "react";
+import { startNavigationProgress } from "@/components/ui/NavigationProgress";
 import { Alert } from "@/components/office/ui/Alert";
 import { Button } from "@/components/office/ui/Button";
 import { Field } from "@/components/office/ui/Field";
@@ -8,7 +10,18 @@ import { officeFormAction } from "@/lib/http/office-client";
 import type { ActionResult } from "@/lib/http/result";
 
 export function LoginForm() {
-  const [state, action, pending] = useActionState(officeFormAction("/api/office/login", "/office"), null as ActionResult | null);
+  const router = useRouter();
+  // After sign-in the office opens with router.push and the page-move bar (BR-99).
+  const [state, action, pending] = useActionState(
+    officeFormAction("/api/office/login", {
+      goTo: "/office",
+      navigate: (href) => {
+        startNavigationProgress(href);
+        router.push(href);
+      },
+    }),
+    null as ActionResult | null,
+  );
   const [showPassword, setShowPassword] = useState(false);
 
   return (

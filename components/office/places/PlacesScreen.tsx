@@ -1,3 +1,4 @@
+import { editorKey } from "@/components/office/content/editor-key";
 import { notFound, redirect } from "next/navigation";
 import { frameFor } from "@/components/office/content/frame";
 import { RecordList, type ListRecord } from "@/components/office/content/RecordList";
@@ -48,7 +49,7 @@ export async function PlacesScreen({ openSlug }: { openSlug?: string }) {
           { value: "tours:desc", label: "Most tours" },
         ]}
       />
-      {open ? <PlaceForm key={open.slug} place={open} savedBy={savedBy} frame={frameFor(places, index, "/office/places", (place) => hrefOf(place.slug))} /> : null}
+      {open ? <PlaceForm key={editorKey(open.slug, open)} place={open} savedBy={savedBy} frame={frameFor(places, index, "/office/places", (place) => hrefOf(place.slug))} /> : null}
     </>
   );
 }

@@ -1,3 +1,4 @@
+import { editorKey } from "@/components/office/content/editor-key";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { frameFor } from "@/components/office/content/frame";
@@ -60,7 +61,7 @@ export async function GalleryScreen({ edit }: { edit?: string }) {
         emptyTitle="No photos yet"
         filters={[{ key: "category", label: "Group", options: [{ value: "", label: "Private and group" }, { value: "private", label: "Private" }, { value: "group", label: "Group" }] }]}
       />
-      {open || isNew ? <PhotoForm key={edit} photo={open} savedBy={savedBy} frame={frameFor(photos, index, LIST, (photo) => hrefOf(photo.id))} /> : null}
+      {open || isNew ? <PhotoForm key={editorKey(edit ?? "", open)} photo={open} savedBy={savedBy} frame={frameFor(photos, index, LIST, (photo) => hrefOf(photo.id))} /> : null}
     </>
   );
 }

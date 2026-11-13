@@ -30,14 +30,15 @@ export function AirExtrasForm({ air, savedBy }: { air: Air; savedBy?: string }) 
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     start(async () => {
-      const result = await postOfficeForm("/api/office/rates", formData);
+      const result = await postOfficeForm("/api/office/rates", formData, "Saving air extras");
       setState(result);
       if (result.ok) router.refresh();
     });
   };
 
   return (
-    <form onSubmit={submit} className="stack">
+    <form onSubmit={submit} className="stack" aria-busy={pending || undefined}>
+      <fieldset className="form-lock" disabled={pending}>
       <input type="hidden" name="kind" value="air" />
       <Card title="Air extras" description="Added to every By Air quote, per guest." savedBy={savedBy}>
         <div className="form-grid">
@@ -53,6 +54,7 @@ export function AirExtrasForm({ air, savedBy }: { air: Air; savedBy?: string }) 
           ))}
         </div>
       </Card>
+      </fieldset>
       <SaveBar label="Save air extras" pending={pending} result={state} hint="The server checks every amount when you save." />
     </form>
   );

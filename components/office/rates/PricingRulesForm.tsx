@@ -32,14 +32,15 @@ export function PricingRulesForm({ rules, savedBy }: { rules: PricingRules; save
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     start(async () => {
-      const result = await postOfficeForm("/api/office/rates", formData);
+      const result = await postOfficeForm("/api/office/rates", formData, "Saving pricing rules");
       setState(result);
       if (result.ok) router.refresh();
     });
   };
 
   return (
-    <form onSubmit={submit} className="stack">
+    <form onSubmit={submit} className="stack" aria-busy={pending || undefined}>
+      <fieldset className="form-lock" disabled={pending}>
       <input type="hidden" name="kind" value="pricing_rule" />
       <Card title="Pricing rules" description="Used by every new quote, in the office and on the website." savedBy={savedBy}>
         <div className="form-grid">
@@ -80,6 +81,7 @@ export function PricingRulesForm({ rules, savedBy }: { rules: PricingRules; save
           })}
         </div>
       </Card>
+      </fieldset>
       <SaveBar label="Save pricing rules" pending={pending} result={state} hint="A saved rule applies at once to new quotes." />
     </form>
   );

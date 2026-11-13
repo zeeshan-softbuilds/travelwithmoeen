@@ -4,10 +4,12 @@ import { useActionState, useState } from "react";
 import { DeleteCard } from "@/components/office/content/DeleteCard";
 import { EditorDrawer } from "@/components/office/content/EditorDrawer";
 import type { EditorFrame } from "@/components/office/content/frame";
-import { photoStyle, rememberSaved } from "@/components/office/content/media";
+import { photoStyle } from "@/components/office/content/media";
 import { FileField } from "@/components/office/content/PhotoField";
 import { SaveBar } from "@/components/office/content/SaveBar";
-import { postOfficeFormWithUploads } from "@/components/office/content/uploads";
+import { submitTo, useAfterSave } from "@/components/office/content/after-save";
+import { UploadProgress } from "@/components/office/content/UploadProgress";
+import { postOfficeFormWithUploads, useUploadProgress } from "@/components/office/content/uploads";
 import { Card } from "@/components/office/ui/Card";
 import { Field } from "@/components/office/ui/Field";
 import type { ActionResult } from "@/lib/http/result";
@@ -18,12 +20,14 @@ export function SlideForm({ slide, position, frame, savedBy }: { slide: HomeSlid
   const [rotation, setRotation] = useState(String(slide?.rotation ?? 0));
   const [image, setImage] = useState(slide?.image ?? "");
   const [chosenPreview, setChosenPreview] = useState("");
+  const after = useAfterSave();
+  const uploads = useUploadProgress();
   const [state, action, pending] = useActionState(async (previous: ActionResult | null, formData: FormData) => {
-    const result = await postOfficeFormWithUploads("/api/office/slides", formData);
+    const result = await postOfficeFormWithUploads("/api/office/slides", formData, uploads.begin(slide ? "Saving slide" : "Adding slide"));
     if (result.ok) {
-      rememberSaved(result.message ?? "Slide saved.");
-      if (slide) window.location.reload();
-      else window.location.assign(frame.closeHref);
+      const message = result.message ?? "Slide saved.";
+      if (slide) after.stay(message, `slide:${slide.id}`);
+      else after.go(frame.closeHref, message, { scroll: false });
     }
     return result;
   }, null as ActionResult | null);
@@ -48,7 +52,8 @@ export function SlideForm({ slide, position, frame, savedBy }: { slide: HomeSlid
       viewHref={slide ? "/" : undefined}
       preview={preview}
     >
-      <form action={action} className="stack">
+      <form onSubmit={submitTo(action)} className="stack" aria-busy={pending || undefined}>
+        <fieldset className="form-lock" disabled={pending}>
         {slide ? <input type="hidden" name="id" value={slide.id} /> : null}
         <Card title="Slide">
           <div className="form-grid">
@@ -67,7 +72,9 @@ export function SlideForm({ slide, position, frame, savedBy }: { slide: HomeSlid
           </div>
           <FileField label={slide ? "Replace photo" : "Photo"} pathName="image" fileName="photo" value={image} onChange={setImage} onFile={setChosenPreview} />
         </Card>
-        <SaveBar label={slide ? "Save slide" : "Add slide"} pending={pending} result={state} />
+        </fieldset>
+        <UploadProgress progress={uploads.progress} onCancel={uploads.cancel} />
+        <SaveBar label={slide ? "Save slide" : "Add slide"} pending={pending} result={state} scope={slide ? `slide:${slide.id}` : undefined} />
       </form>
       {slide ? (
         <DeleteCard

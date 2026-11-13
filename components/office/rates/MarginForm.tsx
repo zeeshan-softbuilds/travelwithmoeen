@@ -23,14 +23,15 @@ export function MarginForm({ margin, savedBy }: { margin: number; savedBy?: stri
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     start(async () => {
-      const saved = await postOfficeForm("/api/office/rates", formData);
+      const saved = await postOfficeForm("/api/office/rates", formData, "Saving profit margin");
       setResult(saved);
       if (saved.ok) router.refresh();
     });
   };
 
   return (
-    <form onSubmit={submit} className="stack">
+    <form onSubmit={submit} className="stack" aria-busy={pending || undefined}>
+      <fieldset className="form-lock" disabled={pending}>
       <input type="hidden" name="kind" value="season" />
       <Card title="Profit margin" description={`Added last to every quote, after the costs. Saved now: ${margin} percent.`} savedBy={savedBy}>
         <div className="form-grid">
@@ -72,6 +73,7 @@ export function MarginForm({ margin, savedBy }: { margin: number; savedBy?: stri
           </div>
         </div>
       </Card>
+      </fieldset>
       <SaveBar label="Save profit margin" pending={pending} result={result} hint="A quote screen can still use another margin for one quote." />
     </form>
   );

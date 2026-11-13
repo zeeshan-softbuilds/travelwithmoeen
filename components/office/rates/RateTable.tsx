@@ -7,6 +7,7 @@ import { Button } from "@/components/office/ui/Button";
 import { EmptyState } from "@/components/office/ui/EmptyState";
 import { Icon } from "@/components/office/ui/Icon";
 import { Table } from "@/components/office/ui/Table";
+import { cancelNavigationProgress } from "@/components/ui/NavigationProgress";
 import type { SavedCell } from "@/components/office/activity";
 import { postOfficeForm } from "@/lib/http/office-client";
 
@@ -82,9 +83,11 @@ export function RateTable({ kind, noun, columns, rows, filters = [], searchLabel
     const onClick = (event: MouseEvent) => {
       const link = (event.target as HTMLElement).closest?.("a[href]");
       if (!link || link.getAttribute("target") === "_blank") return;
+      // The page-move bar starts on the same click, before this question, so Cancel stops it too.
       if (!window.confirm(LEAVE_QUESTION)) {
         event.preventDefault();
         event.stopPropagation();
+        cancelNavigationProgress();
       }
     };
     const onUnload = (event: BeforeUnloadEvent) => event.preventDefault();
@@ -120,7 +123,7 @@ export function RateTable({ kind, noun, columns, rows, filters = [], searchLabel
             form.set(column.key, String(value));
           }
         }
-        const result = await postOfficeForm("/api/office/rates", form);
+        const result = await postOfficeForm("/api/office/rates", form, "Saving rates");
         if (result.ok) savedCount += 1;
         else failed[id] = result.error;
       }

@@ -217,9 +217,39 @@
   .office .body { min-width: 0; display: flex; flex-direction: column; }
   .office .topbar { position: sticky; top: 0; z-index: var(--z-sticky); display: flex; align-items: center; gap: var(--space-3); min-height: var(--topbar-h); padding: 0 var(--space-6); background: color-mix(in srgb, var(--canvas) 82%, transparent); backdrop-filter: saturate(1.4) blur(var(--blur-topbar)); border-bottom: var(--border-w) solid var(--border); }
   .office .topbar-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+
+  /* T-50 (BR-98): the action that is working, then its result, in the top bar. */
+  .office .topbar-busy { display: inline-flex; align-items: center; gap: var(--space-2); min-width: 0; max-width: 40ch; font-size: var(--text-sm); color: var(--text-2); }
+  .office .topbar-busy-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .office .topbar-busy.is-saved { color: var(--success-text); }
+  .office .topbar-busy.is-error { color: var(--danger-text); }
+  .office .topbar-spinner { width: var(--icon-sm); height: var(--icon-sm); flex: none; border-radius: 50%; border: var(--border-w-lg) solid currentColor; border-right-color: transparent; animation: office-spin var(--dur-spin) linear infinite; }
+
+  /* T-50 (BR-98): while a form saves, its fields cannot be changed. The fieldset adds no box. */
+  .office .form-lock { display: contents; }
+
+  /* T-50 (BR-97): upload progress with Cancel. */
+  .office .upload-progress { display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-4); border: var(--border-w) solid var(--border); border-radius: var(--r-m); background: var(--surface); }
+  .office .upload-progress-row { display: flex; align-items: center; gap: var(--space-3); justify-content: space-between; font-size: var(--text-sm); }
+  .office .upload-progress-bar { height: var(--space-2); border-radius: var(--space-1); background: var(--surface-2); overflow: hidden; }
+  .office .upload-progress-fill { height: 100%; background: var(--primary); transition: width var(--dur) linear; }
+
+  /* T-50 (BR-96): placeholder blocks while an office page loads. */
+  .office .placeholder-page { display: grid; gap: var(--space-6); }
+  .office .ph { display: block; border-radius: var(--r-m); background: linear-gradient(90deg, var(--surface-2) 0%, var(--surface-hover) 50%, var(--surface-2) 100%); background-size: 200% 100%; animation: office-shimmer 1.4s ease-in-out infinite; }
+  .office .ph-title { height: var(--space-8); width: min(320px, 60%); }
+  .office .ph-line { height: var(--space-4); width: min(520px, 90%); }
+  .office .ph-tabs { height: var(--space-10); width: 100%; }
+  .office .ph-card { height: 220px; width: 100%; }
+  .office .ph-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-4); }
+  .office .ph-stat { height: 96px; }
+  @keyframes office-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
   .office .side-scrim { display: none; }
   .office .main { padding: var(--space-6) var(--space-8) var(--space-24); max-width: var(--w-xl); width: 100%; margin: 0 auto; outline: none; display: flex; flex-direction: column; align-items: stretch; gap: var(--stack); }
   .office .main > * { margin-block: 0; min-width: 0; }
+  /* T-50: the page inside main. It adds no box, so the page keeps the layout above. */
+  .office .main-page { display: contents; }
+  .office .main-page > * { margin-block: 0; min-width: 0; }
 
   /* ---------- Login ---------- */
   .office .login { min-height: 100vh; display: grid; place-items: center; padding: var(--space-10) var(--space-4); outline: none; }
@@ -586,5 +616,12 @@
 
   @media (forced-colors: active) {
     .office .btn, .office .input, .office .card, .office .badge, .office .nav-item[aria-current="page"] { border: var(--border-w) solid CanvasText; }
+  }
+
+  /* T-50 (BR-100): last in the file, so it wins over the moving rules above. The spinners stand
+     still and the placeholders do not shimmer. */
+  @media (prefers-reduced-motion: reduce) {
+    .office .btn[aria-busy="true"]::before, .office .topbar-spinner { animation: none; }
+    .office .ph { animation: none; }
   }
 }

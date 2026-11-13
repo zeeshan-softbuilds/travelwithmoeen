@@ -4,6 +4,7 @@ import { Geist, Geist_Mono, Philosopher } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 import { SiteChrome } from "@/components/SiteChrome";
+import { NavigationProgress } from "@/components/ui/NavigationProgress";
 import { SiteSettingsProvider } from "@/components/SiteSettingsProvider";
 import { getSiteSettings } from "@/lib/http/site-content";
 
@@ -40,6 +41,7 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${philosopher.variable} antialiased selection:bg-indigo-100 selection:text-indigo-900`}
       >
+        <NavigationProgress />
         <SiteSettingsProvider value={settings}>
           <SiteChrome>{children}</SiteChrome>
           <Toaster richColors />

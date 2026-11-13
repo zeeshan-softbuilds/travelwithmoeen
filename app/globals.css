@@ -195,3 +195,59 @@
 
 
 
+
+/* T-50 (BR-95, BR-100): the page-move bar from components/ui/NavigationProgress.tsx. 3 pixels high,
+   gold on the public site and the office primary colour in the office. */
+.nav-progress-root {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 2147483000;
+  pointer-events: none;
+}
+.nav-progress {
+  height: 3px;
+  width: 0;
+  opacity: 0;
+  background: var(--gold);
+}
+.nav-progress.is-office {
+  background: var(--primary, #0f766e);
+}
+.nav-progress.is-active {
+  opacity: 1;
+  animation: nav-progress-grow 10s cubic-bezier(0.1, 0.7, 0.2, 1) forwards;
+}
+.nav-progress.is-done {
+  width: 100%;
+  opacity: 0;
+  animation: none;
+  transition: opacity 250ms ease 100ms;
+}
+@keyframes nav-progress-grow {
+  0% { width: 0; }
+  8% { width: 35%; }
+  100% { width: 92%; }
+}
+.nav-progress-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-progress.is-active {
+    width: 100%;
+    animation: none;
+  }
+  .nav-progress.is-done {
+    transition: none;
+  }
+}
