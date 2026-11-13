@@ -468,3 +468,48 @@ The TWM team moved to the Vercel Pro plan on 13 November 2026 after the Hobby li
 - **Role checks.** The cache holds only the file list. The Owner check in `listBackupsAs` runs on every request, outside the cache.
 - **Downloads.** `readBackupAs` still reads the chosen file each time. A download is rare and is not cached.
 - **Testing.** Local runs use the stand-in in section 14a, never a Vercel store. To see the backup list locally, set `BLOB_READ_WRITE_TOKEN` to the stand-in token for that check only, and leave it empty for `check-step3`, whose guard refuses it.
+
+## 15. Package download, T-58 to T-61
+
+Requirements section 8e. The references are the sample package PDF in the feedback folder and the day library in the costing desk, `ITIN`, which stays in the feedback folder. Read the rules from the requirements, not from the desk or the sample.
+
+### Tables, `drizzle/0007_packages.sql`
+
+One additive migration, after T-48's `0005` and T-49's `0006`.
+
+| Table | Columns |
+|---|---|
+| `day_plans` | `id` serial, `place` text, a rate place, `part` text: `out_air`, `out_road`, `middle`, `back_air`, or `back_road`, `position` integer, `title` text, `overnight` text, `sections` jsonb, a list of `{ label, text }`. |
+| `package_options` | `id` serial, `name` text unique, `places` text array, empty for every place, `day_one` jsonb `{ label, text }` or null, `swap_from` text, a middle day title, or null, `swap_to` integer, a `day_plans` id, or null, `rest_days` boolean, `badge` text or null, `intro` text or null, `not_included` text array, `sort_order` integer. |
+| `package_sections` | `id` serial, `title` text, `kind` text: `text`, `rows`, or `steps`, `body` jsonb, `sort_order` integer. |
+| `quote_packages` | `quote_id` integer primary key, references `quotes` on delete cascade, `title` text, `all_grades` boolean, `flight_note` boolean, `option_ids` integer array, `pictures` text array of up to 3 media addresses. |
+
+Add the four tables to `BACKUP_TABLES` before `activity`.
+
+### Building the days, `lib/package.ts`
+
+- `packageDays(quote, options)` takes the way out for the mode, the middle days in `position` order after any swap, and the way back. When rest days are on, it holds back the rest-day count in BR-107 and puts a free day after every third sightseeing day. Extra days are free days at the last overnight place, which is BR-106.
+- Each day returns its title, overnight place, and sections, with `{ORIGIN}` replaced and an option's day-one paragraph added to day 1.
+- The desk's own loop rules for Skardu and Hunza are not copied. The team keeps the middle days in the order they want, and changes them in the office.
+
+### Pricing
+
+- `buildQuote` gains an optional list of overnight places, one for each night. With it, each night uses the rate row for that place, start city or Air, and grade, when one exists, which is BR-112. The package sends it from its day plans. A guest quote does not send it.
+- The price table calls `buildQuote` once for each grade shown, which is BR-109, then rounds each total up to the next 10,000 and divides by adults and children, which is BR-110. Keep the rounding in one function, so a change from Moeen is one line plus its check.
+
+### The document
+
+- `GET /api/office/quotes/[id]/package` renders one HTML document with inline styles, in the sample's order: header, At a glance, Day-by-day, Package category and pricing, Services included and not included, Flight ticket note, then the fixed sections in order.
+- PDF is the browser's Print to PDF of that page, with a print style sheet for A4. `?format=word` returns the same HTML with `Content-Type: application/msword` and a `.doc` name, which Word opens. No new package.
+- The response never holds the net cost, the lines, or the profit. The check proves it by searching the document for the subtotal and the profit.
+- Header pictures are gallery addresses or new uploads through `POST /api/office/uploads`. No other file is stored. A package is built from the data on each download and is not saved as a file.
+
+### Screens
+
+- **Day plans**, `/office/rates/day-plans`: pick a place, then its five parts, each a list of days that can be added, changed, deleted, and moved up or down.
+- **Package options** and **Fixed sections**, `/office/rates/package-options` and `/office/rates/package-sections`: a list with an add drawer, edit, delete, and order.
+- **Package**, a tab on a saved quote: the title, starting from the place, days, mode, start city, and party, then All categories, Flight ticket note, the option ticks, and 1 to 3 pictures. It shows a preview of the document, with Download PDF and Download Word.
+
+### Starting data
+
+The day plans, the three options, and the fixed sections are loaded on the preview site as a data step, from the desk's `ITIN` and the sample PDF, after T-60 is merged, as with the rates. The desk file is never added to the repository.
