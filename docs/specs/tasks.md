@@ -119,7 +119,7 @@ The rules are requirements section 8e and design section 15. T-61 waits for Moee
 | S-12 | Jeep count. The v1.2 desk counts adults and children for each jeep. This spec counts every traveler, infants included, which is BR-27. | Changed 4 November 2026 | Adults and children, 1 jeep for every 6. BR-27 is changed. | T-55 |
 | S-13 | Package prices are rounded up to the next 10,000, never down. Per person is the rounded total divided by adults and children. | Asked 14 November 2026 | | T-61 |
 | S-14 | The hotel names for each grade come from the hotel name on each place's rate row, joined in the order the trip reaches the places. | Asked 14 November 2026 | | T-61 |
-| S-15 | Each night is priced at its overnight place's rate, such as 3 nights in Skardu and 1 in Khaplu, as the desk does. | To ask | | T-61 |
+| S-15 | Each night is priced at its overnight place's rate, such as 3 nights in Skardu and 1 in Khaplu, as the desk does. | Asked 14 November 2026 | | T-61 |
 
 Status is Asked, Approved, or Changed. A look change Moeen asks for on one screen goes into that screen's task. A change to a price rule goes into the requirement first.
 
