@@ -159,9 +159,9 @@ The guest builder keeps today's minimum trip length for each place. That limit i
 
 The test quote is Islamabad, Skardu Valley, 5 days, 2 adults, Gli car, Deluxe, no guide, no meals, a profit margin of 20 percent, and no night or day edit. The package includes a hotel and transport. The total must be 140,400. That is a subtotal of 117,000 times 1.20.
 
-### Hotel package, pending Moeen sign-off
+### Hotel package
 
-The quote has three hotel choices. With hotel is the default and includes a hotel and other services. No hotel keeps the other services and drops the hotel line, nights, rooms, meals, stickers, and the road breakfast. Hotel only asks for the city and the number of nights, and drops the vehicle, day edits, toll, jeeps, guide, extras, breakfast, the Lahore extra, and, on air, the tickets, welcome pack, entry, sticker, and infant extra. Under With hotel, Same hotel all nights is the default: one catalog pick for every night. Change per night is one click and shows the catalog pick on each night. A package with neither a hotel nor other services is refused. Guests get the same three choices and see only the final total. Staff see the lines and one total for each mode. Hotel cost, when a catalog pick has been changed, follows city, then hotel, then room, then occupancy. Grade is a label on the hotel. Until that pick is changed, the untouched quote uses the published twin rate so the Skardu test stays 140,400. These defaults are pending Moeen sign-off. The live office builds the three choices in T-37h, after sign-off. Until the catalog is built in T-39, a hotel night uses the grade rate, which is BR-84.
+The quote has three hotel choices. With hotel is the default and includes a hotel and other services. No hotel keeps the other services and drops the hotel line, nights, rooms, meals, stickers, and the road breakfast. Hotel only asks for the city and the number of nights, and drops the vehicle, day edits, toll, jeeps, guide, extras, breakfast, the Lahore extra, and, on air, the tickets, welcome pack, entry, sticker, and infant extra. Under With hotel, Same hotel all nights is the default: one catalog pick for every night. Change per night is one click and shows the catalog pick on each night. A package with neither a hotel nor other services is refused. Guests get the same three choices and see only the final total. Staff see the lines and one total for each mode. Hotel cost, when a catalog pick has been changed, follows city, then hotel, then room, then occupancy. Grade is a label on the hotel. Until that pick is changed, the untouched quote uses the published twin rate so the Skardu test stays 140,400. Moeen approved these defaults on 13 November 2026, sign-off rows S-3 to S-8. The live office builds the three choices in T-37h. Until the catalog is built in T-39, a hotel night uses the grade rate, which is BR-84.
 
 ### Couple price on a tour card
 
@@ -368,7 +368,7 @@ The `seasons` table keeps one row. Its `percent` becomes any whole percent from 
 
 ### Hotel choices, T-37h
 
-Built after rows S-3 to S-8 in the tasks file are Approved or Changed. The rules are section 5, "Hotel package, pending Moeen sign-off". Add one input to the quote function, the hotel choice: with, none, or only. Keep the default in one constant in `lib/quote.ts`, so a change from Moeen is one line plus its check. Same hotel all nights is the starting quote in BR-45. Change per night opens the night lines in BR-46, with a grade or a typed rate on each night, which is BR-84. The hotel catalog is not built. That is T-39.
+Built after rows S-3 to S-8 in the tasks file are Approved or Changed. The rules are section 5, "Hotel package". Add one input to the quote function, the hotel choice: with, none, or only. Keep the default in one constant in `lib/quote.ts`, so a change from Moeen is one line plus its check. Same hotel all nights is the starting quote in BR-45. Change per night opens the night lines in BR-46, with a grade or a typed rate on each night, which is BR-84. The hotel catalog is not built. That is T-39.
 
 ### When Moeen changes something
 

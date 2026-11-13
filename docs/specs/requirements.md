@@ -76,9 +76,9 @@ These rules fill the quote before anyone edits a single night or a single day.
 | BR-43 | Profit is added last, at the active profit margin. The margin is a whole percent from 0 to 100. |
 | BR-44 | Before live prices are switched, this example must total 140,400 rupees. The profit margin in this test is 20 percent: Islamabad, Skardu Valley, 5 days, 2 adults, Gli car, Deluxe, no guide, no meals, with a hotel and with transport. No one-night or one-day edit is applied to this test. |
 
-### Hotel package, pending Moeen sign-off
+### Hotel package
 
-These defaults are pending Moeen sign-off. The Meadow prototype uses them so Moeen can sign off before the live office changes.
+Moeen approved the three hotel choices on 13 November 2026, sign-off rows S-3 to S-8. The starting profit margin, row S-2, is still pending Moeen sign-off.
 
 - With hotel is the default. The package includes a hotel and other services.
 - No hotel keeps the other services. It has no hotel line, no nights, no rooms, no meals, no stickers, and no road breakfast.
@@ -88,7 +88,7 @@ These defaults are pending Moeen sign-off. The Meadow prototype uses them so Moe
 - Guests on the website get the same three choices. They see only the final total. Staff see the lines and one total for each mode.
 - Until the catalog pick is changed, the untouched Skardu quote still uses the published Deluxe twin rate, so the test total stays 140,400 at a profit margin of 20 percent.
 - The profit margin starts at 20 percent. It is a whole percent from 0 to 100.
-- The dashboard note about the costing file is a placeholder while that mismatch is checked.
+- The dashboard note about the costing file stays a placeholder. The team's example, row S-9, was answered on 13 November 2026.
 - Hotel only still counts rooms from the party already on the quote. Two adults use one room.
 
 ## 5. One night or one day
