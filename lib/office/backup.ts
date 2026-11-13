@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "crypto";
 import { del, get, list, put } from "@vercel/blob";
+import { revalidateTag, unstable_cache } from "next/cache";
 import { db } from "@/lib/db";
 import {
   activity,
@@ -76,6 +77,25 @@ export type BackupRow = {
   uploadedAt: string;
 };
 
+// T-57 (design section 14b): each Blob operation counts against the Vercel plan, so the office does not
+// list the backup store on every dashboard and Backups visit. The list is kept for 6 hours, and
+// runBackup clears it, so a new backup shows on the next visit.
+const BACKUP_LIST_TAG = "office-backups";
+const BACKUP_LIST_SECONDS = 6 * 60 * 60;
+
+// The backups in the store, newest first. The cache keeps JSON, so the time is an ISO string. Only
+// the file list is cached. The role check and storageReady() run on every request, before this.
+const cachedBackupList = unstable_cache(
+  async (): Promise<BackupRow[]> => {
+    const { blobs } = await list({ prefix: PREFIX, token: process.env.BLOB_READ_WRITE_TOKEN });
+    return blobs
+      .sort((left, right) => right.uploadedAt.getTime() - left.uploadedAt.getTime())
+      .map((blob) => ({ name: blob.pathname, size: blob.size, uploadedAt: blob.uploadedAt.toISOString() }));
+  },
+  [BACKUP_LIST_TAG],
+  { tags: [BACKUP_LIST_TAG], revalidate: BACKUP_LIST_SECONDS },
+);
+
 function storageReady() {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
 }
@@ -116,7 +136,13 @@ export async function runBackup(): Promise<ActionResult> {
     contentType: "application/json",
     addRandomSuffix: false,
   });
-  await pruneOldBackups();
+  try {
+    await pruneOldBackups();
+  } finally {
+    // Back up now and the nightly POST /api/backup both end here. The file is saved, so the next
+    // visit lists the store again, even if removing an old backup failed.
+    revalidateTag(BACKUP_LIST_TAG, { expire: 0 });
+  }
   const rowCount = Object.values(file.tables).reduce((total, rows) => total + rows.length, 0);
   return { ok: true, message: `Backup saved: ${name} (${rowCount} rows).` };
 }
@@ -138,11 +164,7 @@ export async function listBackupsAs(actor: SessionUser) {
   if (!storageReady()) {
     return { ok: true as const, backups: [] as BackupRow[] };
   }
-  const { blobs } = await list({ prefix: PREFIX, token: process.env.BLOB_READ_WRITE_TOKEN });
-  const backups: BackupRow[] = blobs
-    .sort((left, right) => right.uploadedAt.getTime() - left.uploadedAt.getTime())
-    .map((blob) => ({ name: blob.pathname, size: blob.size, uploadedAt: blob.uploadedAt.toISOString() }));
-  return { ok: true as const, backups };
+  return { ok: true as const, backups: await cachedBackupList() };
 }
 
 export async function readBackupAs(actor: SessionUser, name: string) {
